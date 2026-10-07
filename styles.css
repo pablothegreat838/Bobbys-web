@@ -68,6 +68,8 @@
     .release-note { color: var(--yellow); font: 10px 'DM Mono', monospace; text-align: right; }
     .empty { padding: 38px 20px; border: 1px dashed #d4d8cd; border-radius: 6px; color: var(--muted); text-align: center; font-size: 14px; line-height: 1.7; }
     .empty strong { display: block; margin-bottom: 5px; color: var(--ink); font: 600 15px 'Space Grotesk', sans-serif; }
+    .board-warning { margin: 0 0 24px; padding: 12px 14px; border: 1px solid #e5c77e; border-radius: 5px; background: var(--yellow-soft); color: #725313; font-size: 13px; line-height: 1.55; }
+    .board-warning strong { display: block; margin-bottom: 3px; color: var(--ink); font-weight: 600; }
 
     .staff-main { width: min(100% - 40px, 1000px); padding-top: 38px; }
     .staff-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; margin-bottom: 26px; }

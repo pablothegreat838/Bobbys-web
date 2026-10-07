@@ -3,6 +3,7 @@
   let entries = [];
   let activeFilter = 'all';
   let searchTerm = '';
+  let apiError = '';
 
   function escapeHtml(value) {
     return String(value).replace(/[&<>"']/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]);
@@ -29,6 +30,7 @@
       </article>`).join('');
 
     app.innerHTML = `
+      ${apiError ? `<div class="board-warning" role="status"><strong>List temporarily unavailable</strong>${escapeHtml(apiError)} The status board is still available; entries will appear after the Pages data binding is configured.</div>` : ''}
       <p class="eyebrow">The community status board</p>
       <h1>Check an entry.</h1>
       <p class="intro">Search the list to see whether an entry is currently blocked or available.</p>
@@ -67,11 +69,20 @@
       throw new Error(result.error || 'The status board could not be loaded.');
     }
     entries = await response.json();
+    apiError = '';
     render();
   }
 
   loadEntries().catch((error) => {
-    app.innerHTML = `<div class="empty"><strong>Board unavailable</strong>${escapeHtml(error.message)} Add the missing Pages setting under Settings → Functions, then redeploy.</div>`;
+    apiError = error.message;
+    render();
   });
-  window.setInterval(() => { loadEntries().catch(() => {}); }, 15000);
+  window.setInterval(() => {
+    loadEntries().catch((error) => {
+      if (apiError !== error.message) {
+        apiError = error.message;
+        render();
+      }
+    });
+  }, 15000);
 })();
