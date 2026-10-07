@@ -1,4 +1,4 @@
-import { json, readEntries, releaseExpired, requireStaff, writeEntries } from '../_lib/data.js';
+import { json, readEntries, releaseExpired, requireSameOrigin, writeEntries } from '../_lib/data.js';
 
 const MAX_ENTRIES = 5000;
 const MAX_TEXT_LENGTH = 2000;
@@ -13,7 +13,7 @@ export async function onRequestGet({ env }) {
 }
 
 export async function onRequestPost({ request, env }) {
-  const denied = await requireStaff(request, env);
+  const denied = requireSameOrigin(request);
   if (denied) return denied;
   try {
     const body = await request.json();
@@ -40,7 +40,7 @@ export async function onRequestPost({ request, env }) {
 }
 
 export async function onRequestPatch({ request, env }) {
-  const denied = await requireStaff(request, env);
+  const denied = requireSameOrigin(request);
   if (denied) return denied;
   try {
     const body = await request.json();
@@ -61,7 +61,7 @@ export async function onRequestPatch({ request, env }) {
 }
 
 export async function onRequestDelete({ request, env }) {
-  const denied = await requireStaff(request, env);
+  const denied = requireSameOrigin(request);
   if (denied) return denied;
   try {
     const body = await request.json();

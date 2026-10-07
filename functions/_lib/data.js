@@ -1,5 +1,3 @@
-import { isAuthenticated, isSameOrigin } from './auth.js';
-
 export function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
     status,
@@ -7,9 +5,9 @@ export function json(data, status = 200) {
   });
 }
 
-export async function requireStaff(request, env) {
-  if (!isSameOrigin(request)) return json({ error: 'Cross-origin request rejected.' }, 403);
-  if (!await isAuthenticated(request, env)) return json({ error: 'Staff sign-in required.' }, 401);
+export function requireSameOrigin(request) {
+  const origin = request.headers.get('Origin');
+  if (origin && origin !== new URL(request.url).origin) return json({ error: 'Cross-origin request rejected.' }, 403);
   return null;
 }
 

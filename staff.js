@@ -45,8 +45,8 @@
 
     app.innerHTML = `
       <div class="staff-heading">
-        <div><p class="eyebrow">Private staff tools</p><h1>Manage entries.</h1><p class="intro">Add games and websites, change their status, and schedule automatic releases.</p></div>
-        <div class="staff-nav"><a class="back-link" href="/home.html">Public page</a><button class="small-button" id="logout" type="button">Sign out</button></div>
+        <div><p class="eyebrow">Staff tools</p><h1>Manage entries.</h1><p class="intro">Add games and websites, change their status, and schedule automatic releases.</p></div>
+        <div class="staff-nav"><a class="back-link" href="/home.html">Public page</a></div>
       </div>
       <div class="staff-grid">
         <section aria-labelledby="add-title">
@@ -66,7 +66,6 @@
 
     app.querySelector('#add-form').addEventListener('submit', addEntries);
     app.querySelector('#delete-all').addEventListener('click', deleteAll);
-    app.querySelector('#logout').addEventListener('click', logout);
     app.querySelectorAll('[data-delete]').forEach((button) => button.addEventListener('click', () => mutate('DELETE', { id: button.dataset.delete }, 'Entry deleted.')));
     app.querySelectorAll('[data-toggle]').forEach((button) => {
       const entry = entries.find((item) => item.id === button.dataset.toggle);
@@ -93,10 +92,6 @@
       cache: 'no-store'
     });
     const result = await response.json();
-    if (response.status === 401) {
-      window.location.assign('/staff-login.html');
-      throw new Error('Please sign in again.');
-    }
     if (!response.ok) throw new Error(result.error || 'The change could not be saved.');
     return result;
   }
@@ -142,11 +137,6 @@
   async function deleteAll() {
     if (!entries.length || !window.confirm(`Delete all ${entries.length} entries? This cannot be undone.`)) return;
     await mutate('DELETE', { all: true }, 'All entries deleted.');
-  }
-
-  async function logout() {
-    await fetch('/api/logout', { method: 'POST' });
-    window.location.assign('/home.html');
   }
 
   loadEntries().catch((error) => {

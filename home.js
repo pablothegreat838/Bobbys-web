@@ -14,6 +14,9 @@
   }
 
   function render() {
+    const focusedSearch = document.activeElement?.id === 'search';
+    const selectionStart = focusedSearch ? document.activeElement.selectionStart : null;
+    const selectionEnd = focusedSearch ? document.activeElement.selectionEnd : null;
     const query = searchTerm.trim().toLowerCase();
     const filtered = entries.filter((entry) => {
       const matchesQuery = !query || entry.text.toLowerCase().includes(query);
@@ -48,13 +51,14 @@
         ${rows || `<div class="empty"><strong>${entries.length ? 'No matching entries' : 'Nothing on the board yet'}</strong>${entries.length ? 'Try another search or status filter.' : 'There are no entries to show right now.'}</div>`}
       </section>`;
 
-    app.querySelector('#search').addEventListener('input', (event) => {
-      searchTerm = event.target.value;
-      const cursor = event.target.selectionStart;
-      render();
+    if (focusedSearch) {
       const input = app.querySelector('#search');
       input.focus();
-      input.setSelectionRange(cursor, cursor);
+      if (selectionStart !== null) input.setSelectionRange(selectionStart, selectionEnd);
+    }
+    app.querySelector('#search').addEventListener('input', (event) => {
+      searchTerm = event.target.value;
+      render();
     });
     app.querySelectorAll('[data-filter]').forEach((button) => button.addEventListener('click', () => {
       activeFilter = button.dataset.filter;
