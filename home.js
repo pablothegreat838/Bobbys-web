@@ -62,13 +62,16 @@
 
   async function loadEntries() {
     const response = await fetch('/api/entries', { cache: 'no-store' });
-    if (!response.ok) throw new Error('The status board could not be loaded.');
+    if (!response.ok) {
+      const result = await response.json().catch(() => ({}));
+      throw new Error(result.error || 'The status board could not be loaded.');
+    }
     entries = await response.json();
     render();
   }
 
-  loadEntries().catch(() => {
-    app.innerHTML = '<div class="empty"><strong>Board unavailable</strong>Check the Cloudflare Pages setup and try again.</div>';
+  loadEntries().catch((error) => {
+    app.innerHTML = `<div class="empty"><strong>Board unavailable</strong>${escapeHtml(error.message)} Add the missing Pages setting under Settings → Functions, then redeploy.</div>`;
   });
   window.setInterval(() => { loadEntries().catch(() => {}); }, 15000);
 })();

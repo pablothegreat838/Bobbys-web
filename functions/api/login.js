@@ -3,7 +3,12 @@ import { json } from '../_lib/data.js';
 
 export async function onRequestPost({ request, env }) {
   if (!isSameOrigin(request)) return json({ error: 'Cross-origin request rejected.' }, 403);
-  if (!env.STAFF_PASSWORD || !env.SESSION_SECRET || !env.ENTRIES) return json({ error: 'Staff sign-in is not configured.' }, 503);
+  const missing = [
+    !env.ENTRIES && 'ENTRIES KV namespace binding',
+    !env.STAFF_PASSWORD && 'STAFF_PASSWORD secret',
+    !env.SESSION_SECRET && 'SESSION_SECRET secret'
+  ].filter(Boolean);
+  if (missing.length) return json({ error: `Missing Pages configuration: ${missing.join(', ')}.` }, 503);
   try {
     const body = await request.json();
     const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
