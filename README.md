@@ -10,4 +10,44 @@ Static Cloudflare Pages status board. The public page is `home.html`; `index.htm
 4. Add the binding to the **Production** environment. If testing a Preview deployment, configure it there too.
 5. Redeploy the project after saving the binding. Open `/staff` to manage entries.
 
-No password or session secrets are required. The staff editor and its write API are public, so anyone who can reach the site can change or delete board entries.
+## Links API
+
+The Pages Function at `/api/links` stores links in the same `ENTRIES` KV namespace under a separate `links` key. `GET` returns the public link list. `POST` adds a link from `{ "url": "https://example.com", "title": "Example" }`, and `DELETE` removes a link from `{ "id": "..." }`. Both write methods require a bearer token.
+
+### Configure the API secret
+
+In **Workers & Pages → your Pages project → Settings → Variables and Secrets**, add a secret named `API_SECRET` with a long, randomly generated value. Configure it for Production and for Preview too if the API should work on preview deployments, then redeploy. Keep this value in the Discord bot's server-side environment; never include it in website JavaScript or other frontend files.
+
+### Discord bot requests
+
+Use your deployed site's origin in place of `https://your-site.pages.dev`. Keep `API_SECRET` in the bot's environment, not in code committed to the website repository.
+
+```js
+const site = 'https://your-site.pages.dev';
+const token = process.env.API_SECRET;
+
+const listResponse = await fetch(`${site}/api/links`);
+const links = await listResponse.json();
+
+const addResponse = await fetch(`${site}/api/links`, {
+	method: 'POST',
+	headers: {
+		Authorization: `Bearer ${token}`,
+		'Content-Type': 'application/json'
+	},
+	body: JSON.stringify({ url: 'https://example.com', title: 'Example' })
+});
+const addedLink = await addResponse.json();
+
+const deleteResponse = await fetch(`${site}/api/links`, {
+	method: 'DELETE',
+	headers: {
+		Authorization: `Bearer ${token}`,
+		'Content-Type': 'application/json'
+	},
+	body: JSON.stringify({ id: addedLink.id })
+});
+const deleted = await deleteResponse.json();
+```
+
+The staff editor and its existing entries write API remain public, so anyone who can reach the site can change or delete board entries. The `API_SECRET` protects only link creation and deletion.
