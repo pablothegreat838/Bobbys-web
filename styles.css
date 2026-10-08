@@ -79,12 +79,21 @@
     .link-category h2 { margin: 0 0 10px; font: 600 16px 'Space Grotesk', sans-serif; text-transform: capitalize; }
     .published-links { display: grid; gap: 8px; }
     .published-link { min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 14px 16px; border: 1px solid var(--line); border-radius: 5px; background: var(--surface); }
+    .category-tabs { margin-bottom: 16px; flex-wrap: wrap; }
+    .category-tabs .filter-button { min-width: 72px; }
     .published-link-title { min-width: 0; display: grid; gap: 4px; }
     .published-link-title a { overflow-wrap: anywhere; color: var(--ink); font-size: 14px; font-weight: 600; }
     .published-link-title span { overflow-wrap: anywhere; color: var(--muted); font: 10px 'DM Mono', monospace; }
     .copy-link { flex: 0 0 auto; }
     .terms-main { min-height: calc(100vh - 164px); }
     .terms-list { display: grid; gap: 12px; max-width: 650px; margin: 0; padding-left: 24px; color: var(--ink); font-size: 15px; line-height: 1.7; }
+    .staff-links { margin-top: 32px; }
+    .link-admin-form { margin-bottom: 12px; }
+    .link-form-grid { display: grid; grid-template-columns: minmax(160px, 1fr) minmax(200px, 1.4fr) minmax(140px, .7fr) minmax(120px, .7fr); align-items: end; gap: 12px; }
+    .link-form-grid .field { margin-bottom: 0; }
+    .link-form-grid .primary-button { min-height: 40px; margin-bottom: 0; }
+    .category-select { min-height: 32px; padding: 0 8px; border: 1px solid #d8dbd1; border-radius: 4px; background: white; color: var(--ink); font-size: 12px; }
+    .link-manage-list { margin-top: 10px; }
 
     .staff-main { width: min(100% - 40px, 1000px); padding-top: 38px; }
     .staff-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; margin-bottom: 26px; }
@@ -152,6 +161,7 @@
       .manage-actions { flex-wrap: wrap; justify-content: flex-end; }
       .published-link { align-items: flex-start; }
       .copy-link { padding: 0 8px; }
+      .link-form-grid { grid-template-columns: 1fr; }
     }
     @media (prefers-reduced-motion: reduce) {
       *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; }

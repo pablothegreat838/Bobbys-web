@@ -12,7 +12,7 @@ Static Cloudflare Pages status board. The public page is `home.html`; `index.htm
 
 ## Links API
 
-The Pages Function at `/api/links` stores links in the same `ENTRIES` KV namespace under a separate `links` key. `GET` returns the public link list. `POST` adds a link from `{ "url": "https://example.com", "title": "Example", "category": "websites" }`, and `DELETE` removes a link from `{ "id": "..." }`. Categories are `websites`, `eagler`, and `movies`; omitted categories default to `websites`. Both write methods require a bearer token. Published links are grouped and copyable at `/links.html`.
+The Pages Function at `/api/links` stores links in the same `ENTRIES` KV namespace under a separate `links` key. `GET` returns the public link list. `POST` adds a link from `{ "url": "https://example.com", "title": "Example", "category": "websites" }`, `PATCH` updates a category from `{ "id": "...", "category": "movies" }`, and `DELETE` removes a link from `{ "id": "..." }`. Categories are `websites`, `eagler`, and `movies`; omitted categories default to `websites`. Write methods require a bearer token. Manage published links in the staff panel; browse and copy them from the home page.
 
 ### Configure the API secret
 

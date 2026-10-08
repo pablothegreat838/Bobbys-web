@@ -80,6 +80,36 @@ export async function onRequestPost({ request, env }) {
   }
 }
 
+export async function onRequestPatch({ request, env }) {
+  const denied = authorized(request, env);
+  if (denied) return denied;
+
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return json({ error: 'Request body must be valid JSON.' }, 400);
+  }
+  if (!body || typeof body.id !== 'string' || !body.id.trim() || typeof body.category !== 'string') {
+    return json({ error: 'Provide a link id and category.' }, 400);
+  }
+  const category = body.category.trim().toLowerCase();
+  if (!LINK_CATEGORIES.includes(category)) {
+    return json({ error: `Category must be one of: ${LINK_CATEGORIES.join(', ')}.` }, 400);
+  }
+
+  try {
+    const links = await readLinks(env);
+    const index = links.findIndex((link) => link.id === body.id);
+    if (index === -1) return json({ error: 'Link not found.' }, 404);
+    links[index] = { ...links[index], category };
+    await writeLinks(env, links);
+    return json(links[index]);
+  } catch {
+    return json({ error: 'Could not update link.' }, 503);
+  }
+}
+
 export async function onRequestDelete({ request, env }) {
   const denied = authorized(request, env);
   if (denied) return denied;

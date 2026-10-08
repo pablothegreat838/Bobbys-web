@@ -1,7 +1,10 @@
 (() => {
   const app = document.querySelector('#app');
   const toast = document.querySelector('#toast');
+  const linkCategories = ['websites', 'eagler', 'movies'];
   let entries = [];
+  let links = [];
+  let linkToken = sessionStorage.getItem('linksApiSecret') || '';
   let toastTimeout;
 
   function escapeHtml(value) {
@@ -42,6 +45,19 @@
           ${entry.releaseAt ? `<button class="small-button remove" type="button" data-remove-timer="${escapeHtml(entry.id)}">Delete timer</button><span class="no-timer">Releases ${escapeHtml(formatDate(entry.releaseAt))}</span>` : ''}
         </form>` : '<div class="no-timer">Unblocked entries do not have release timers.</div>'}
       </article>`).join('');
+    const linkRows = links.map((link) => `
+      <article class="manage-entry">
+        <div class="manage-top">
+          <div class="published-link-title"><strong>${escapeHtml(link.title)}</strong><span>${escapeHtml(link.url)}</span></div>
+          <div class="manage-actions">
+            <select class="category-select" data-link-category="${escapeHtml(link.id)}" aria-label="Category for ${escapeHtml(link.title)}">
+              ${linkCategories.map((category) => `<option value="${category}" ${link.category === category ? 'selected' : ''}>${category[0].toUpperCase() + category.slice(1)}</option>`).join('')}
+            </select>
+            <button class="small-button" type="button" data-save-link="${escapeHtml(link.id)}">Save category</button>
+            <button class="small-button remove" type="button" data-delete-link="${escapeHtml(link.id)}" aria-label="Delete ${escapeHtml(link.title)}">Delete</button>
+          </div>
+        </div>
+      </article>`).join('');
 
     app.innerHTML = `
       <div class="staff-heading">
@@ -64,7 +80,35 @@
         </section>
       </div>`;
 
+    app.insertAdjacentHTML('beforeend', `
+      <section class="staff-links" aria-labelledby="links-title">
+        <div class="list-heading"><h2 class="section-title" id="links-title">Manage published links <span class="result-count">(${links.length})</span></h2></div>
+        <form class="add-form link-admin-form" id="add-link-form">
+          <div class="field"><label for="links-token">Links API secret</label><input id="links-token" type="password" value="${escapeHtml(linkToken)}" autocomplete="current-password" required><small>Used only for link changes and kept for this browser session.</small></div>
+          <div class="link-form-grid">
+            <div class="field"><label for="link-title">Link title</label><input id="link-title" name="title" type="text" maxlength="200" required></div>
+            <div class="field"><label for="link-url">URL</label><input id="link-url" name="url" type="url" placeholder="https://example.com" required></div>
+            <div class="field"><label for="link-category">Category</label><select id="link-category" name="category">${linkCategories.map((category) => `<option value="${category}">${category[0].toUpperCase() + category.slice(1)}</option>`).join('')}</select></div>
+            <button class="primary-button" type="submit">Publish link</button>
+          </div>
+        </form>
+        <div class="manage-list link-manage-list">${linkRows || '<div class="manage-empty">No published links yet.</div>'}</div>
+      </section>`);
+
     app.querySelector('#add-form').addEventListener('submit', addEntries);
+    app.querySelector('#links-token').addEventListener('input', (event) => {
+      linkToken = event.target.value;
+      if (linkToken) sessionStorage.setItem('linksApiSecret', linkToken);
+      else sessionStorage.removeItem('linksApiSecret');
+    });
+    app.querySelector('#add-link-form').addEventListener('submit', addLink);
+    app.querySelectorAll('[data-save-link]').forEach((button) => button.addEventListener('click', () => {
+      const category = app.querySelector(`[data-link-category="${CSS.escape(button.dataset.saveLink)}"]`).value;
+      mutateLink('PATCH', { id: button.dataset.saveLink, category }, 'Link category updated.');
+    }));
+    app.querySelectorAll('[data-delete-link]').forEach((button) => button.addEventListener('click', () => {
+      if (window.confirm('Delete this published link?')) mutateLink('DELETE', { id: button.dataset.deleteLink }, 'Link deleted.');
+    }));
     app.querySelector('#delete-all').addEventListener('click', deleteAll);
     app.querySelectorAll('[data-delete]').forEach((button) => button.addEventListener('click', () => mutate('DELETE', { id: button.dataset.delete }, 'Entry deleted.')));
     app.querySelectorAll('[data-toggle]').forEach((button) => {
@@ -98,7 +142,58 @@
 
   async function loadEntries() {
     entries = await request('GET');
+    await loadLinks();
     render();
+  }
+
+  async function requestLinks(method = 'GET', data) {
+    const headers = { 'Content-Type': 'application/json' };
+    if (method !== 'GET') {
+      if (!linkToken) throw new Error('Enter the Links API secret to manage links.');
+      headers.Authorization = `Bearer ${linkToken}`;
+    }
+    const response = await fetch('/api/links', {
+      method,
+      headers,
+      body: data ? JSON.stringify(data) : undefined,
+      cache: 'no-store'
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || 'The link change could not be saved.');
+    return result;
+  }
+
+  async function loadLinks() {
+    links = await requestLinks();
+  }
+
+  async function mutateLink(method, data, message) {
+    try {
+      await requestLinks(method, data);
+      await loadLinks();
+      render();
+      notify(message);
+    } catch (error) {
+      notify(error.message);
+    }
+  }
+
+  async function addLink(event) {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    const link = {
+      title: String(formData.get('title')).trim(),
+      url: String(formData.get('url')).trim(),
+      category: String(formData.get('category'))
+    };
+    try {
+      await requestLinks('POST', link);
+      await loadLinks();
+      render();
+      notify('Link published.');
+    } catch (error) {
+      notify(error.message);
+    }
   }
 
   async function mutate(method, data, message) {
