@@ -3,6 +3,7 @@ import { json } from '../_lib/data.js';
 const LINKS_KEY = 'links';
 const MAX_TITLE_LENGTH = 200;
 const MAX_URL_LENGTH = 2048;
+const LINK_CATEGORIES = ['websites', 'eagler', 'movies'];
 
 function authorized(request, env) {
   if (!env.API_SECRET) return json({ error: 'The API_SECRET environment variable is not configured.' }, 503);
@@ -18,7 +19,9 @@ async function readLinks(env) {
   if (!saved) return [];
   const parsed = JSON.parse(saved);
   if (!Array.isArray(parsed)) return [];
-  return parsed.filter((link) => link && typeof link.id === 'string' && typeof link.url === 'string' && typeof link.title === 'string');
+  return parsed
+    .filter((link) => link && typeof link.id === 'string' && typeof link.url === 'string' && typeof link.title === 'string')
+    .map((link) => ({ ...link, category: LINK_CATEGORIES.includes(link.category) ? link.category : 'websites' }));
 }
 
 async function writeLinks(env, links) {
@@ -63,8 +66,13 @@ export async function onRequestPost({ request, env }) {
   }
 
   try {
+    const category = typeof body.category === 'string' ? body.category.trim().toLowerCase() : 'websites';
+    if (!LINK_CATEGORIES.includes(category)) {
+      return json({ error: `Category must be one of: ${LINK_CATEGORIES.join(', ')}.` }, 400);
+    }
+
     const links = await readLinks(env);
-    const link = { id: crypto.randomUUID(), url: parsedUrl.toString(), title, createdAt: new Date().toISOString() };
+    const link = { id: crypto.randomUUID(), url: parsedUrl.toString(), title, category, createdAt: new Date().toISOString() };
     await writeLinks(env, [...links, link]);
     return json(link, 201);
   } catch {

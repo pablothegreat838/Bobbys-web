@@ -4,23 +4,30 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#f6f5f0">
-  <title>bobbys-web status board</title>
+  <title>Bobbys Terms &amp; Services | Bobby's Web</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./styles.css">
+  <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
   <header class="topbar">
     <a class="brand" href="/home.html" aria-label="bobbys-web home">bobbys<span>-</span>web</a>
-    <div class="top-note"><span class="live-dot" aria-hidden="true"></span><span>STATUS BOARD</span></div>
+    <div class="top-note">TERMS &amp; SERVICES</div>
   </header>
-  <main id="app" aria-live="polite"><p class="intro">Loading the status board...</p></main>
+  <main class="terms-main">
+    <a class="back-link page-back" href="/home.html">Back to status board</a>
+    <p class="eyebrow">Bobbys Terms &amp; Services</p>
+    <h1>Terms &amp; Services.</h1>
+    <p class="intro">By entering this website, you agree to the following terms and services:</p>
+    <ol class="terms-list">
+      <li>If any link gives you a virus, it is not our fault.</li>
+      <li>If you get suspended, it is not our fault.</li>
+    </ol>
+  </main>
   <footer class="site-footer">
     <span>© Copyrighted by Spud / Bobby's Web</span>
-    <nav aria-label="More pages"><a href="/links.html">Published links</a><a href="/terms.html">Bobbys Terms &amp; Services</a></nav>
+    <nav aria-label="More pages"><a href="/home.html">Status board</a><a href="/links.html">Published links</a></nav>
   </footer>
-  <div class="toast" id="toast" role="status" hidden></div>
-  <script src="/home.js" defer></script>
 </body>
 </html>
