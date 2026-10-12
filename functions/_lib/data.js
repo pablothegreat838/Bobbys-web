@@ -17,23 +17,20 @@ export async function readEntries(env) {
   if (!saved) return [];
   const parsed = JSON.parse(saved);
   if (!Array.isArray(parsed)) return [];
-  return parsed.filter((entry) => entry && typeof entry.id === 'string' && typeof entry.text === 'string' && ['blocked', 'unblocked'].includes(entry.status));
+  return parsed
+    .filter((entry) => entry && typeof entry.id === 'string' && (typeof entry.name === 'string' || typeof entry.text === 'string'))
+    .map((entry) => {
+      const legacyLinks = typeof entry.text === 'string' ? entry.text.split(/[\r\n\s]+/).filter((value) => /^https?:\/\//i.test(value)) : [];
+      return {
+        id: entry.id,
+        name: typeof entry.name === 'string' ? entry.name : entry.text,
+        links: Array.isArray(entry.links) ? entry.links.filter((value) => typeof value === 'string') : legacyLinks,
+        category: ['websites', 'eagler', 'movies'].includes(entry.category) ? entry.category : 'websites',
+        createdAt: entry.createdAt || null
+      };
+    });
 }
 
 export async function writeEntries(env, entries) {
   await env.ENTRIES.put('board', JSON.stringify(entries));
-}
-
-export async function releaseExpired(env, entries) {
-  let changed = false;
-  const now = Date.now();
-  const updated = entries.map((entry) => {
-    if (entry.status === 'blocked' && entry.releaseAt && Date.parse(entry.releaseAt) <= now) {
-      changed = true;
-      return { ...entry, status: 'unblocked', releaseAt: null };
-    }
-    return entry;
-  });
-  if (changed) await writeEntries(env, updated);
-  return updated;
 }

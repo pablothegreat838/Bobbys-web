@@ -1,23 +1,12 @@
 (() => {
   const app = document.querySelector('#app');
   const toast = document.querySelector('#toast');
-  const linkCategories = ['websites', 'eagler', 'movies'];
+  const categories = ['websites', 'eagler', 'movies'];
   let entries = [];
-  let links = [];
-  let linkToken = sessionStorage.getItem('linksApiSecret') || '';
   let toastTimeout;
 
   function escapeHtml(value) {
     return String(value).replace(/[&<>"']/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]);
-  }
-
-  function formatDate(value) {
-    return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value));
-  }
-
-  function toLocalInput(value) {
-    const date = new Date(value);
-    return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
   }
 
   function notify(message) {
@@ -28,50 +17,33 @@
   }
 
   function render() {
-    const rows = entries.map((entry) => `
+    const rows = entries.map((entry, index) => `
       <article class="manage-entry">
         <div class="manage-top">
-          <div class="entry-copy">${escapeHtml(entry.text)}</div>
-          <div class="manage-actions">
-            <span class="badge ${entry.status}">${entry.status}</span>
-            <button class="small-button" type="button" data-toggle="${escapeHtml(entry.id)}">Mark ${entry.status === 'blocked' ? 'unblocked' : 'blocked'}</button>
-            <button class="small-button remove" type="button" data-delete="${escapeHtml(entry.id)}" aria-label="Delete entry">Delete</button>
+          <div class="manage-entry-copy">
+            <strong>${index + 1}. ${escapeHtml(entry.name)}</strong>
+            <div class="manage-entry-links">${(entry.links || []).map((url) => `<span>${escapeHtml(url)}</span>`).join(' <span aria-hidden="true">&middot;</span> ') || '<span>No links added</span>'}</div>
+            <span class="entry-category">${escapeHtml(entry.category || 'websites')}</span>
           </div>
-        </div>
-        ${entry.status === 'blocked' ? `<form class="timer-form" data-timer-id="${escapeHtml(entry.id)}">
-          <label class="timer-label" for="timer-${escapeHtml(entry.id)}">Automatic release</label>
-          <input id="timer-${escapeHtml(entry.id)}" type="datetime-local" value="${entry.releaseAt ? escapeHtml(toLocalInput(entry.releaseAt)) : ''}" required>
-          <button class="small-button" type="submit">${entry.releaseAt ? 'Update timer' : 'Add timer'}</button>
-          ${entry.releaseAt ? `<button class="small-button remove" type="button" data-remove-timer="${escapeHtml(entry.id)}">Delete timer</button><span class="no-timer">Releases ${escapeHtml(formatDate(entry.releaseAt))}</span>` : ''}
-        </form>` : '<div class="no-timer">Unblocked entries do not have release timers.</div>'}
-      </article>`).join('');
-    const linkRows = links.map((link) => `
-      <article class="manage-entry">
-        <div class="manage-top">
-          <div class="published-link-title"><strong>${escapeHtml(link.title)}</strong><span>${escapeHtml(link.url)}</span></div>
           <div class="manage-actions">
-            <select class="category-select" data-link-category="${escapeHtml(link.id)}" aria-label="Category for ${escapeHtml(link.title)}">
-              ${linkCategories.map((category) => `<option value="${category}" ${link.category === category ? 'selected' : ''}>${category[0].toUpperCase() + category.slice(1)}</option>`).join('')}
-            </select>
-            <button class="small-button" type="button" data-save-link="${escapeHtml(link.id)}">Save category</button>
-            <button class="small-button remove" type="button" data-delete-link="${escapeHtml(link.id)}" aria-label="Delete ${escapeHtml(link.title)}">Delete</button>
+            <button class="small-button remove" type="button" data-delete="${escapeHtml(entry.id)}" aria-label="Delete entry">Delete</button>
           </div>
         </div>
       </article>`).join('');
 
     app.innerHTML = `
       <div class="staff-heading">
-        <div><p class="eyebrow">Staff tools</p><h1>Manage entries.</h1><p class="intro">Add games and websites, change their status, and schedule automatic releases.</p></div>
+        <div><p class="eyebrow">Staff tools</p><h1>Bob.</h1><p class="intro">Create named link entries and organize them by category.</p></div>
         <div class="staff-nav"><a class="back-link" href="/home.html">Public page</a></div>
       </div>
       <div class="staff-grid">
         <section aria-labelledby="add-title">
           <h2 class="section-title" id="add-title">Add entries</h2>
           <form class="add-form" id="add-form">
-            <div class="field"><label for="new-entries">Games or websites</label><textarea id="new-entries" name="text" placeholder="Paste one per line, or separate with commas or semicolons" required></textarea><small>Each line, comma, or semicolon becomes a separate entry.</small></div>
-            <div class="field"><label for="new-status">Starting status</label><select id="new-status" name="status"><option value="blocked">Blocked</option><option value="unblocked">Unblocked</option></select></div>
-            <div class="field"><label for="new-release">Automatic release (optional)</label><input id="new-release" name="releaseAt" type="datetime-local"><small>Applied to every new entry when its status is blocked.</small></div>
-            <button class="primary-button" type="submit">Add to the board</button>
+            <div class="field"><label for="new-name">Entry name</label><input id="new-name" name="name" type="text" maxlength="200" placeholder="Daily link" required></div>
+            <div class="field"><label for="new-links">Links</label><textarea id="new-links" name="links" placeholder="Paste links here, one per line" required></textarea><small>All links stay together under this entry name.</small></div>
+            <div class="field"><label for="new-category">Category</label><select id="new-category" name="category">${categories.map((category) => `<option value="${category}">${category[0].toUpperCase() + category.slice(1)}</option>`).join('')}</select></div>
+            <button class="primary-button" type="submit">Add entry</button>
           </form>
         </section>
         <section aria-labelledby="list-title">
@@ -80,55 +52,12 @@
         </section>
       </div>`;
 
-    app.insertAdjacentHTML('beforeend', `
-      <section class="staff-links" aria-labelledby="links-title">
-        <div class="list-heading"><h2 class="section-title" id="links-title">Manage published links <span class="result-count">(${links.length})</span></h2></div>
-        <form class="add-form link-admin-form" id="add-link-form">
-          <div class="field"><label for="links-token">Links API secret</label><input id="links-token" type="password" value="${escapeHtml(linkToken)}" autocomplete="current-password" required><small>Used only for link changes and kept for this browser session.</small></div>
-          <div class="link-form-grid">
-            <div class="field"><label for="link-title">Link title</label><input id="link-title" name="title" type="text" maxlength="200" required></div>
-            <div class="field"><label for="link-url">URL</label><input id="link-url" name="url" type="url" placeholder="https://example.com" required></div>
-            <div class="field"><label for="link-category">Category</label><select id="link-category" name="category">${linkCategories.map((category) => `<option value="${category}">${category[0].toUpperCase() + category.slice(1)}</option>`).join('')}</select></div>
-            <button class="primary-button" type="submit">Publish link</button>
-          </div>
-        </form>
-        <div class="manage-list link-manage-list">${linkRows || '<div class="manage-empty">No published links yet.</div>'}</div>
-      </section>`);
-
     app.querySelector('#add-form').addEventListener('submit', addEntries);
-    app.querySelector('#links-token').addEventListener('input', (event) => {
-      linkToken = event.target.value;
-      if (linkToken) sessionStorage.setItem('linksApiSecret', linkToken);
-      else sessionStorage.removeItem('linksApiSecret');
-    });
-    app.querySelector('#add-link-form').addEventListener('submit', addLink);
-    app.querySelectorAll('[data-save-link]').forEach((button) => button.addEventListener('click', () => {
-      const category = app.querySelector(`[data-link-category="${CSS.escape(button.dataset.saveLink)}"]`).value;
-      mutateLink('PATCH', { id: button.dataset.saveLink, category }, 'Link category updated.');
-    }));
-    app.querySelectorAll('[data-delete-link]').forEach((button) => button.addEventListener('click', () => {
-      if (window.confirm('Delete this published link?')) mutateLink('DELETE', { id: button.dataset.deleteLink }, 'Link deleted.');
-    }));
     app.querySelector('#delete-all').addEventListener('click', deleteAll);
     app.querySelectorAll('[data-delete]').forEach((button) => button.addEventListener('click', () => mutate('DELETE', { id: button.dataset.delete }, 'Entry deleted.')));
-    app.querySelectorAll('[data-toggle]').forEach((button) => {
-      const entry = entries.find((item) => item.id === button.dataset.toggle);
-      button.addEventListener('click', () => mutate('PATCH', { id: entry.id, status: entry.status === 'blocked' ? 'unblocked' : 'blocked', releaseAt: null }, 'Entry status updated.'));
-    });
-    app.querySelectorAll('[data-timer-id]').forEach((form) => form.addEventListener('submit', (event) => {
-      event.preventDefault();
-      const input = form.querySelector('input');
-      const releaseAt = new Date(input.value);
-      if (Number.isNaN(releaseAt.getTime()) || releaseAt.getTime() <= Date.now()) {
-        notify('Choose a release time in the future.');
-        return;
-      }
-      mutate('PATCH', { id: form.dataset.timerId, releaseAt: releaseAt.toISOString() }, 'Automatic release timer saved.');
-    }));
-    app.querySelectorAll('[data-remove-timer]').forEach((button) => button.addEventListener('click', () => mutate('PATCH', { id: button.dataset.removeTimer, releaseAt: null }, 'Release timer deleted.')));
   }
 
-  async function request(method, data) {
+  async function request(method = 'GET', data) {
     const response = await fetch('/api/entries', {
       method,
       headers: { 'Content-Type': 'application/json' },
@@ -142,58 +71,7 @@
 
   async function loadEntries() {
     entries = await request('GET');
-    await loadLinks();
     render();
-  }
-
-  async function requestLinks(method = 'GET', data) {
-    const headers = { 'Content-Type': 'application/json' };
-    if (method !== 'GET') {
-      if (!linkToken) throw new Error('Enter the Links API secret to manage links.');
-      headers.Authorization = `Bearer ${linkToken}`;
-    }
-    const response = await fetch('/api/links', {
-      method,
-      headers,
-      body: data ? JSON.stringify(data) : undefined,
-      cache: 'no-store'
-    });
-    const result = await response.json();
-    if (!response.ok) throw new Error(result.error || 'The link change could not be saved.');
-    return result;
-  }
-
-  async function loadLinks() {
-    links = await requestLinks();
-  }
-
-  async function mutateLink(method, data, message) {
-    try {
-      await requestLinks(method, data);
-      await loadLinks();
-      render();
-      notify(message);
-    } catch (error) {
-      notify(error.message);
-    }
-  }
-
-  async function addLink(event) {
-    event.preventDefault();
-    const formData = new FormData(event.currentTarget);
-    const link = {
-      title: String(formData.get('title')).trim(),
-      url: String(formData.get('url')).trim(),
-      category: String(formData.get('category'))
-    };
-    try {
-      await requestLinks('POST', link);
-      await loadLinks();
-      render();
-      notify('Link published.');
-    } catch (error) {
-      notify(error.message);
-    }
   }
 
   async function mutate(method, data, message) {
@@ -210,20 +88,17 @@
     event.preventDefault();
     const form = event.currentTarget;
     const formData = new FormData(form);
-    const items = String(formData.get('text')).split(/[\r\n,;]+/).map((line) => line.trim().replace(/^[-*]\s*/, '')).filter(Boolean);
-    if (!items.length) return;
-    const status = String(formData.get('status'));
-    const rawRelease = String(formData.get('releaseAt') || '');
-    const releaseDate = rawRelease ? new Date(rawRelease) : null;
-    if (releaseDate && (Number.isNaN(releaseDate.getTime()) || releaseDate.getTime() <= Date.now())) {
-      notify('Choose an automatic release time in the future.');
-      return;
-    }
-    const releaseAt = releaseDate ? releaseDate.toISOString() : null;
+    const links = String(formData.get('links')).split(/[\r\n\s]+/).map((url) => url.trim().replace(/[,;]+$/, '')).filter(Boolean);
+    const entry = {
+      name: String(formData.get('name')).trim(),
+      links,
+      category: String(formData.get('category'))
+    };
     try {
-      const result = await request('POST', { items, status, releaseAt: status === 'blocked' ? releaseAt : null });
+      const result = await request('POST', entry);
       await loadEntries();
       notify(`${result.added} ${result.added === 1 ? 'entry added' : 'entries added'}.`);
+      form.reset();
     } catch (error) {
       notify(error.message);
     }

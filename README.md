@@ -1,6 +1,6 @@
 # Bobbys-web
 
-Static Cloudflare Pages status board. The public page is `home.html`; `index.html` forwards the root URL to it. Staff tools are served at `/staff` and use Cloudflare Pages Functions plus KV for shared entry storage. Staff editing is password-free and publicly accessible; anyone can add, change, or delete entries.
+Static Cloudflare Pages link collection. The public page is `home.html`; `index.html` forwards the root URL to it. Bob's editor is served at `/staff` and uses Cloudflare Pages Functions plus KV for shared entry storage. Staff editing is password-free and publicly accessible; anyone can add or delete entries.
 
 ## Cloudflare Pages setup
 
@@ -8,11 +8,11 @@ Static Cloudflare Pages status board. The public page is `home.html`; `index.htm
 2. Set the build output directory to the project root (`.`) and leave the build command empty.
 3. In Cloudflare, open **Workers & Pages → your Pages project → Settings → Functions → KV namespace bindings**. Add a binding named exactly `ENTRIES`, create/select a KV namespace for it, and save.
 4. Add the binding to the **Production** environment. If testing a Preview deployment, configure it there too.
-5. Redeploy the project after saving the binding. Open `/staff` to manage entries.
+5. Redeploy the project after saving the binding. Open `/staff` to add named entries, paste multiple links into each entry, and choose a category.
 
 ## Links API
 
-The Pages Function at `/api/links` stores links in the same `ENTRIES` KV namespace under a separate `links` key. `GET` returns the public link list. `POST` adds a link from `{ "url": "https://example.com", "title": "Example", "category": "websites" }`, `PATCH` updates a category from `{ "id": "...", "category": "movies" }`, and `DELETE` removes a link from `{ "id": "..." }`. Categories are `websites`, `eagler`, and `movies`; omitted categories default to `websites`. Write methods require a bearer token. Manage published links in the staff panel; browse and copy them from the home page.
+The Pages Function at `/api/links` stores standalone links in the same `ENTRIES` KV namespace under a separate `links` key for bot integrations. `GET` returns the public link list. `POST` adds a link from `{ "url": "https://example.com", "title": "Example", "category": "websites" }`, `PATCH` updates a category from `{ "id": "...", "category": "movies" }`, and `DELETE` removes a link from `{ "id": "..." }`. Categories are `websites`, `eagler`, and `movies`; omitted categories default to `websites`. Write methods require a bearer token. The home page combines these standalone links with named entries from `/api/entries`.
 
 ### Configure the API secret
 
