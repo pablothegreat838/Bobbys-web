@@ -3,6 +3,7 @@
   const toast = document.querySelector('#toast');
   const categories = ['websites', 'eagler', 'movies'];
   let entries = [];
+  let pendingEntries = [];
   let toastTimeout;
 
   function escapeHtml(value) {
@@ -33,7 +34,7 @@
 
     app.innerHTML = `
       <div class="staff-heading">
-        <div><p class="eyebrow">Staff tools</p><h1>Bob.</h1><p class="intro">Create named link entries and organize them by category.</p></div>
+        <div><p class="eyebrow">Bob</p><h1>Bob.</h1><p class="intro">Create named link entries and organize them by category.</p></div>
         <div class="staff-nav"><a class="back-link" href="/home.html">Public page</a></div>
       </div>
       <div class="staff-grid">
@@ -70,13 +71,19 @@
   }
 
   async function loadEntries() {
-    entries = await request('GET');
+    const savedEntries = await request('GET');
+    const savedIds = new Set(savedEntries.map((entry) => entry.id));
+    pendingEntries = pendingEntries.filter((entry) => !savedIds.has(entry.id) && entry.pendingUntil > Date.now());
+    entries = [...savedEntries, ...pendingEntries.map(({ pendingUntil, ...entry }) => entry)];
     render();
   }
 
   async function mutate(method, data, message) {
     try {
       await request(method, data);
+      if (method === 'DELETE') {
+        pendingEntries = data.all ? [] : pendingEntries.filter((entry) => entry.id !== data.id);
+      }
       await loadEntries();
       notify(message);
     } catch (error) {
@@ -96,7 +103,9 @@
     };
     try {
       const result = await request('POST', entry);
-      await loadEntries();
+      pendingEntries.push({ ...result.entry, pendingUntil: Date.now() + 120000 });
+      entries = [...entries, result.entry];
+      render();
       notify(`${result.added} ${result.added === 1 ? 'entry added' : 'entries added'}.`);
       form.reset();
     } catch (error) {

@@ -42,15 +42,15 @@ export async function onRequestPost({ request, env }) {
       links.push(url.toString());
     }
     const timestamp = new Date().toISOString();
-    const nextEntries = [...entries, {
+    const entry = {
       id: crypto.randomUUID(),
       name,
       links,
       category: body.category,
       createdAt: timestamp
-    }];
-    await writeEntries(env, nextEntries);
-    return json({ added: 1 });
+    };
+    await writeEntries(env, [...entries, entry]);
+    return json({ added: 1, entry }, 201);
   } catch (error) {
     return json({ error: error.message || 'Could not add entries.' }, 503);
   }
