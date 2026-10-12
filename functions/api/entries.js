@@ -2,7 +2,6 @@ import { json, readEntries, requireSameOrigin, writeEntries } from '../_lib/data
 
 const MAX_ENTRIES = 5000;
 const MAX_NAME_LENGTH = 200;
-const MAX_LINKS_PER_ENTRY = 500;
 const MAX_URL_LENGTH = 2048;
 const CATEGORIES = ['websites', 'eagler', 'movies'];
 
@@ -20,8 +19,8 @@ export async function onRequestPost({ request, env }) {
   try {
     const body = await request.json();
     const entries = await readEntries(env);
-    if (!body || typeof body.name !== 'string' || !Array.isArray(body.links) || !body.links.length || body.links.length > MAX_LINKS_PER_ENTRY) {
-      return json({ error: `Provide an entry name and between 1 and ${MAX_LINKS_PER_ENTRY} links.` }, 400);
+    if (!body || typeof body.name !== 'string' || !Array.isArray(body.links) || !body.links.length) {
+      return json({ error: 'Provide an entry name and at least one link.' }, 400);
     }
     if (entries.length >= MAX_ENTRIES) return json({ error: `The board can contain at most ${MAX_ENTRIES} entries.` }, 400);
     const name = body.name.trim();

@@ -3,7 +3,11 @@
   const toast = document.querySelector('#toast');
   const categories = ['websites', 'eagler', 'movies'];
   let entries = [];
+  let movies = [];
   let pendingEntries = [];
+  let hasRendered = false;
+  let movieUploadInProgress = false;
+  let refreshPending = false;
   let toastTimeout;
 
   function escapeHtml(value) {
@@ -18,6 +22,7 @@
   }
 
   function render() {
+    hasRendered = true;
     const rows = entries.map((entry, index) => `
       <article class="manage-entry">
         <div class="manage-top">
@@ -31,11 +36,17 @@
           </div>
         </div>
       </article>`).join('');
+    const movieRows = movies.map((movie) => `
+      <article class="manage-entry manage-movie">
+        <img src="/api/movie-media?key=${encodeURIComponent(movie.posterKey)}" alt="" loading="lazy">
+        <strong>${escapeHtml(movie.title)}</strong>
+        <button class="small-button remove" type="button" data-delete-movie="${escapeHtml(movie.id)}" aria-label="Delete ${escapeHtml(movie.title)}">Delete</button>
+      </article>`).join('');
 
     app.innerHTML = `
       <div class="staff-heading">
-        <div><p class="eyebrow">Bob</p><h1>Bob.</h1><p class="intro">Create named link entries and organize them by category.</p></div>
-        <div class="staff-nav"><a class="back-link" href="/home.html">Public page</a></div>
+        <div><p class="eyebrow">Bob</p><h1>Bob.</h1><p class="intro">Create named link entries and publish movies.</p></div>
+        <div class="staff-nav"><a class="back-link" href="/home.html">Public page</a><a class="back-link" href="/movies.html">Movies</a></div>
       </div>
       <div class="staff-grid">
         <section aria-labelledby="add-title">
@@ -53,9 +64,23 @@
         </section>
       </div>`;
 
+    app.insertAdjacentHTML('beforeend', `
+      <section class="staff-movies" aria-labelledby="movies-title">
+        <h2 class="section-title" id="movies-title">Movies <span class="result-count">(${movies.length})</span></h2>
+        <form class="add-form movie-add-form" id="movie-form">
+          <div class="field"><label for="movie-title">Movie name</label><input id="movie-title" name="title" type="text" maxlength="200" placeholder="Movie title" required></div>
+          <div class="field"><label for="movie-poster">Poster image</label><input id="movie-poster" name="poster" type="file" accept="image/*" required></div>
+          <div class="field"><label for="movie-video">Video file</label><input id="movie-video" name="video" type="file" accept="video/*" required><small>Large videos upload in smaller parts; keep this page open until publishing finishes.</small></div>
+          <button class="primary-button" type="submit">Publish movie</button>
+        </form>
+        <div class="manage-movie-list">${movieRows || '<div class="manage-empty">No movies published yet.</div>'}</div>
+      </section>`);
+
     app.querySelector('#add-form').addEventListener('submit', addEntries);
+    app.querySelector('#movie-form').addEventListener('submit', addMovie);
     app.querySelector('#delete-all').addEventListener('click', deleteAll);
     app.querySelectorAll('[data-delete]').forEach((button) => button.addEventListener('click', () => mutate('DELETE', { id: button.dataset.delete }, 'Entry deleted.')));
+    app.querySelectorAll('[data-delete-movie]').forEach((button) => button.addEventListener('click', () => deleteMovie(button.dataset.deleteMovie)));
   }
 
   async function request(method = 'GET', data) {
@@ -70,12 +95,123 @@
     return result;
   }
 
+  async function movieFileRequest(action, data) {
+    const response = await fetch(`/api/movie-files?action=${action}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+      cache: 'no-store'
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || 'The file upload could not be completed.');
+    return result;
+  }
+
+  async function uploadMovieFile(file, kind) {
+    if (!file || !file.type.startsWith(kind === 'video' ? 'video/' : 'image/')) {
+      throw new Error(kind === 'video' ? 'Choose a video file.' : 'Choose an image poster.');
+    }
+    const upload = await movieFileRequest('init', { kind, contentType: file.type });
+    const parts = [];
+    const partSize = 8 * 1024 * 1024;
+    try {
+      for (let offset = 0, partNumber = 1; offset < file.size; offset += partSize, partNumber += 1) {
+        const response = await fetch(`/api/movie-files?action=part&key=${encodeURIComponent(upload.key)}&uploadId=${encodeURIComponent(upload.uploadId)}&partNumber=${partNumber}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/octet-stream' },
+          body: file.slice(offset, Math.min(offset + partSize, file.size)),
+          cache: 'no-store'
+        });
+        const part = await response.json();
+        if (!response.ok) throw new Error(part.error || 'A file part could not be uploaded.');
+        parts.push(part);
+        notify(`Uploading ${kind}: ${Math.min(100, Math.round((offset + partSize) / file.size * 100))}%`);
+      }
+      await movieFileRequest('complete', { ...upload, kind, parts });
+      return upload.key;
+    } catch (error) {
+      await movieFileRequest('abort', { ...upload, kind }).catch(() => {});
+      await movieFileRequest('delete', { key: upload.key, kind }).catch(() => {});
+      throw error;
+    }
+  }
+
+  async function addMovie(event) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const submit = form.querySelector('button[type="submit"]');
+    const data = new FormData(form);
+    const uploadedKeys = [];
+    submit.disabled = true;
+    movieUploadInProgress = true;
+    try {
+      const posterKey = await uploadMovieFile(data.get('poster'), 'poster');
+      uploadedKeys.push({ key: posterKey, kind: 'poster' });
+      const videoKey = await uploadMovieFile(data.get('video'), 'video');
+      uploadedKeys.push({ key: videoKey, kind: 'video' });
+      const response = await fetch('/api/movies', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: String(data.get('title')).trim(), posterKey, videoKey }),
+        cache: 'no-store'
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'The movie could not be published.');
+      form.reset();
+      await loadMovies();
+      notify('Movie published.');
+    } catch (error) {
+      await Promise.all(uploadedKeys.map(({ key, kind }) => movieFileRequest('delete', { key, kind }).catch(() => {})));
+      notify(error.message);
+    } finally {
+      submit.disabled = false;
+      movieUploadInProgress = false;
+      if (refreshPending) {
+        refreshPending = false;
+        render();
+      }
+    }
+  }
+
+  async function loadMovies() {
+    const response = await fetch('/api/movies', { cache: 'no-store' });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || 'Movies could not be loaded.');
+    if (JSON.stringify(result) !== JSON.stringify(movies)) {
+      movies = result;
+      if (movieUploadInProgress) refreshPending = true;
+      else render();
+    }
+  }
+
+  async function deleteMovie(id) {
+    if (!window.confirm('Delete this movie and its uploaded files?')) return;
+    try {
+      const response = await fetch('/api/movies', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+        cache: 'no-store'
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'The movie could not be deleted.');
+      await loadMovies();
+      notify('Movie deleted.');
+    } catch (error) {
+      notify(error.message);
+    }
+  }
+
   async function loadEntries() {
     const savedEntries = await request('GET');
     const savedIds = new Set(savedEntries.map((entry) => entry.id));
     pendingEntries = pendingEntries.filter((entry) => !savedIds.has(entry.id) && entry.pendingUntil > Date.now());
-    entries = [...savedEntries, ...pendingEntries.map(({ pendingUntil, ...entry }) => entry)];
-    render();
+    const nextEntries = [...savedEntries, ...pendingEntries.map(({ pendingUntil, ...entry }) => entry)];
+    if (!hasRendered || JSON.stringify(nextEntries) !== JSON.stringify(entries)) {
+      entries = nextEntries;
+      if (movieUploadInProgress) refreshPending = true;
+      else render();
+    }
   }
 
   async function mutate(method, data, message) {
@@ -121,5 +257,7 @@
   loadEntries().catch((error) => {
     app.innerHTML = `<div class="empty"><strong>Staff tools unavailable</strong>${escapeHtml(error.message)}</div>`;
   });
+  loadMovies().catch(() => {});
   window.setInterval(() => { loadEntries().catch(() => {}); }, 15000);
+  window.setInterval(() => { loadMovies().catch(() => {}); }, 15000);
 })();
