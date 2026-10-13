@@ -2,11 +2,27 @@
   const app = document.querySelector('#app');
   const categories = ['websites', 'eagler', 'movies'];
   let entries = [];
+  let announcement = null;
+  let announcementTimeout;
   let activeCategory = 'all';
   let searchTerm = '';
 
   function escapeHtml(value) {
     return String(value).replace(/[&<>"']/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]);
+  }
+
+  function scheduleAnnouncementExpiry() {
+    clearTimeout(announcementTimeout);
+    if (!announcement) return;
+    const remaining = Date.parse(announcement.expiresAt) - Date.now();
+    if (remaining <= 0) {
+      announcement = null;
+      return;
+    }
+    announcementTimeout = setTimeout(() => {
+      scheduleAnnouncementExpiry();
+      render();
+    }, Math.min(remaining, 2147483647));
   }
 
   function render() {
@@ -41,6 +57,7 @@
     }).join('');
 
     app.innerHTML = `
+      ${announcement ? `<aside class="announcement-banner" aria-label="Announcement"><strong>Announcement</strong><p>${escapeHtml(announcement.message)}</p><span>Until ${escapeHtml(new Date(announcement.expiresAt).toLocaleString())}</span></aside>` : ''}
       <p class="eyebrow">The link collection</p>
       <h1>Links.</h1>
       <p class="intro">Browse by category or search by entry number, name, or link.</p>
@@ -74,9 +91,10 @@
   }
 
   async function loadEntries() {
-    const [entriesResponse, linksResponse] = await Promise.all([
+    const [entriesResponse, linksResponse, announcementResponse] = await Promise.all([
       fetch('/api/entries', { cache: 'no-store' }),
-      fetch('/api/links', { cache: 'no-store' }).catch(() => null)
+      fetch('/api/links', { cache: 'no-store' }).catch(() => null),
+      fetch('/api/announcements', { cache: 'no-store' }).catch(() => null)
     ]);
     if (!entriesResponse.ok) {
       const result = await entriesResponse.json().catch(() => ({}));
@@ -89,6 +107,11 @@
       category: categories.includes(entry.category) ? entry.category : 'websites'
     }));
     let legacyLinks = [];
+    if (announcementResponse?.ok) {
+      const result = await announcementResponse.json();
+      announcement = result.announcement;
+      scheduleAnnouncementExpiry();
+    }
     if (linksResponse?.ok) {
       const publishedLinks = await linksResponse.json();
       legacyLinks = publishedLinks.map((link) => ({ name: link.title, links: [link.url], category: link.category }));

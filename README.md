@@ -13,7 +13,7 @@ Static Cloudflare Pages link collection. The public page is `home.html`; `index.
 
 ## Data persistence
 
-Entries and movie details are saved to the `ENTRIES` KV namespace as they are changed; uploaded posters and videos are saved to the `MOVIES` R2 bucket. Movie links can use a Google Drive file share URL or a direct HTTPS video URL (for example, an MP4); Google Drive files must be shared with viewers. Updating or redeploying the website does not erase this data. Keep the same KV namespace and R2 bucket connected to the Production environment for every deployment. Preview deployments and local Wrangler storage can use separate data, so changes made there do not automatically appear on Production. Deleting or replacing the bound namespace or bucket will make its data unavailable.
+Entries, their display order, movie details, movie order, and the current announcement are saved to the `ENTRIES` KV namespace. Announcements appear on the links page until their scheduled expiry and are then hidden automatically. Uploaded posters and videos are saved to the `MOVIES` R2 bucket. Movie links can use a Google Drive file share URL or a direct HTTPS video URL (for example, an MP4); Google Drive files must be shared with viewers. Updating or redeploying the website does not erase this data. Keep the same KV namespace and R2 bucket connected to the Production environment for every deployment. Preview deployments and local Wrangler storage can use separate data, so changes made there do not automatically appear on Production. Deleting or replacing the bound namespace or bucket will make its data unavailable.
 
 ## Links API
 
@@ -55,4 +55,4 @@ const deleteResponse = await fetch(`${site}/api/links`, {
 const deleted = await deleteResponse.json();
 ```
 
-The staff editor and its write APIs remain public, so anyone who can reach the site can change or delete entries and publish or remove movies. The `API_SECRET` protects only link creation and deletion. Video and poster objects are uploaded to R2 in chunks and streamed from `/api/movie-media` with byte-range support. There is no per-entry link-count limit, though Cloudflare KV still imposes its per-value storage limit on the complete entries board.
+The staff editor and its write APIs remain public, so anyone who can reach the site can change or reorder entries and movies, publish or remove movies, and publish or remove announcements. The `API_SECRET` protects only link creation and deletion. Video and poster objects are uploaded to R2 in chunks and streamed from `/api/movie-media` with byte-range support. There is no per-entry link-count limit, though Cloudflare KV still imposes its per-value storage limit on the complete entries board.

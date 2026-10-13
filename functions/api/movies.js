@@ -95,6 +95,33 @@ export async function onRequestPost({ request, env }) {
   }
 }
 
+export async function onRequestPatch({ request, env }) {
+  const denied = requireSameOrigin(request);
+  if (denied) return denied;
+
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return json({ error: 'Request body must be valid JSON.' }, 400);
+  }
+  if (!Array.isArray(body?.ids)) return json({ error: 'Provide movie ids in the desired order.' }, 400);
+
+  try {
+    const movies = await readMovies(env);
+    if (body.ids.length !== movies.length || body.ids.some((id) => typeof id !== 'string') ||
+      new Set(body.ids).size !== movies.length || body.ids.some((id) => !movies.some((movie) => movie.id === id))) {
+      return json({ error: 'Provide each movie id exactly once to set the new order.' }, 400);
+    }
+    const byId = new Map(movies.map((movie) => [movie.id, movie]));
+    const reordered = body.ids.map((id) => byId.get(id));
+    await env.ENTRIES.put(MOVIES_KEY, JSON.stringify(reordered));
+    return json(reordered);
+  } catch (error) {
+    return json({ error: error.message || 'Could not reorder movies.' }, 503);
+  }
+}
+
 export async function onRequestDelete({ request, env }) {
   const denied = requireSameOrigin(request);
   if (denied) return denied;

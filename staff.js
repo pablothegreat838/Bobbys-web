@@ -4,6 +4,8 @@
   const categories = ['websites', 'eagler', 'movies'];
   let entries = [];
   let movies = [];
+  let announcement = null;
+  let activePanel = 'entries';
   let pendingEntries = [];
   let hasRendered = false;
   let movieUploadInProgress = false;
@@ -32,42 +34,54 @@
             <span class="entry-category">${escapeHtml(entry.category || 'websites')}</span>
           </div>
           <div class="manage-actions">
+            <button class="small-button" type="button" data-move-entry="${escapeHtml(entry.id)}" data-direction="-1" aria-label="Move ${escapeHtml(entry.name)} up" ${index === 0 ? 'disabled' : ''}>Up</button>
+            <button class="small-button" type="button" data-move-entry="${escapeHtml(entry.id)}" data-direction="1" aria-label="Move ${escapeHtml(entry.name)} down" ${index === entries.length - 1 ? 'disabled' : ''}>Down</button>
             <button class="small-button remove" type="button" data-delete="${escapeHtml(entry.id)}" aria-label="Delete entry">Delete</button>
           </div>
         </div>
       </article>`).join('');
-    const movieRows = movies.map((movie) => `
+    const movieRows = movies.map((movie, index) => `
       <article class="manage-entry manage-movie">
         ${movie.posterKey ? `<img src="/api/movie-media?key=${encodeURIComponent(movie.posterKey)}" alt="" loading="lazy">` : '<span class="manage-movie-placeholder" aria-hidden="true">▶</span>'}
-        <strong>${escapeHtml(movie.title)}</strong>
-        ${movie.sourceUrl || movie.embedUrl ? '<span class="manage-movie-type">Link</span>' : ''}
-        <button class="small-button remove" type="button" data-delete-movie="${escapeHtml(movie.id)}" aria-label="Delete ${escapeHtml(movie.title)}">Delete</button>
+        <div class="manage-movie-copy"><strong>${index + 1}. ${escapeHtml(movie.title)}</strong>${movie.sourceUrl || movie.embedUrl ? '<span class="manage-movie-type">Link</span>' : ''}</div>
+        <div class="manage-actions">
+          <button class="small-button" type="button" data-move-movie="${escapeHtml(movie.id)}" data-direction="-1" aria-label="Move ${escapeHtml(movie.title)} up" ${index === 0 ? 'disabled' : ''}>Up</button>
+          <button class="small-button" type="button" data-move-movie="${escapeHtml(movie.id)}" data-direction="1" aria-label="Move ${escapeHtml(movie.title)} down" ${index === movies.length - 1 ? 'disabled' : ''}>Down</button>
+          <button class="small-button remove" type="button" data-delete-movie="${escapeHtml(movie.id)}" aria-label="Delete ${escapeHtml(movie.title)}">Delete</button>
+        </div>
       </article>`).join('');
 
     app.innerHTML = `
       <div class="staff-heading">
-        <div><p class="eyebrow">Bob</p><h1>Bob.</h1><p class="intro">Create named link entries and publish movies.</p></div>
+        <div><p class="eyebrow">Staff workspace</p><h1>Manage.</h1></div>
         <div class="staff-nav"><a class="back-link" href="/home.html">Public page</a><a class="back-link" href="/movies.html">Movies</a></div>
       </div>
-      <div class="staff-grid">
-        <section aria-labelledby="add-title">
-          <h2 class="section-title" id="add-title">Add entries</h2>
+      <div class="staff-tabs" role="tablist" aria-label="Staff tools">
+        <button class="staff-tab" id="staff-tab-entries" type="button" role="tab" aria-selected="${activePanel === 'entries'}" aria-controls="staff-panel-entries" data-panel="entries">Links <span>${entries.length}</span></button>
+        <button class="staff-tab" id="staff-tab-movies" type="button" role="tab" aria-selected="${activePanel === 'movies'}" aria-controls="staff-panel-movies" data-panel="movies">Movies <span>${movies.length}</span></button>
+        <button class="staff-tab" id="staff-tab-announcement" type="button" role="tab" aria-selected="${activePanel === 'announcement'}" aria-controls="staff-panel-announcement" data-panel="announcement">Announcement</button>
+      </div>
+      <section class="staff-panel${activePanel === 'entries' ? '' : ' staff-panel-hidden'}" id="staff-panel-entries" role="tabpanel" aria-labelledby="staff-tab-entries" ${activePanel === 'entries' ? '' : 'hidden'}>
+        <div class="staff-workspace">
+          <section aria-labelledby="add-title">
+            <h2 class="section-title" id="add-title">Add links</h2>
           <form class="add-form" id="add-form">
             <div class="field"><label for="new-name">Entry name</label><input id="new-name" name="name" type="text" maxlength="200" placeholder="Daily link" required></div>
             <div class="field"><label for="new-links">Links</label><textarea id="new-links" name="links" placeholder="Paste links here, one per line" required></textarea><small>All links stay together under this entry name.</small></div>
             <div class="field"><label for="new-category">Category</label><select id="new-category" name="category">${categories.map((category) => `<option value="${category}">${category[0].toUpperCase() + category.slice(1)}</option>`).join('')}</select></div>
             <button class="primary-button" type="submit">Add entry</button>
           </form>
-        </section>
-        <section aria-labelledby="list-title">
-          <div class="list-heading"><h2 class="section-title" id="list-title">Current entries <span class="result-count">(${entries.length})</span></h2><button class="small-button remove" id="delete-all" type="button" ${entries.length ? '' : 'disabled'}>Delete all</button></div>
-          <div class="manage-list">${rows || '<div class="manage-empty">No entries yet. Add one to get started.</div>'}</div>
-        </section>
-      </div>`;
-
-    app.insertAdjacentHTML('beforeend', `
-      <section class="staff-movies" aria-labelledby="movies-title">
-        <h2 class="section-title" id="movies-title">Movies <span class="result-count">(${movies.length})</span></h2>
+          </section>
+          <section class="staff-list-panel" aria-labelledby="list-title">
+            <div class="list-heading"><h2 class="section-title" id="list-title">Links <span class="result-count">(${entries.length})</span></h2><button class="small-button remove" id="delete-all" type="button" ${entries.length ? '' : 'disabled'}>Delete all</button></div>
+            <div class="manage-list">${rows || '<div class="manage-empty">No links yet. Add one to get started.</div>'}</div>
+          </section>
+        </div>
+      </section>
+      <section class="staff-panel${activePanel === 'movies' ? '' : ' staff-panel-hidden'}" id="staff-panel-movies" role="tabpanel" aria-labelledby="staff-tab-movies" ${activePanel === 'movies' ? '' : 'hidden'}>
+        <div class="staff-workspace staff-movie-workspace">
+          <section aria-labelledby="movies-title">
+            <h2 class="section-title" id="movies-title">Publish movie</h2>
         <form class="add-form movie-add-form" id="movie-form">
           <div class="field"><label for="movie-title">Movie name</label><input id="movie-title" name="title" type="text" maxlength="200" placeholder="Movie title" required></div>
           <div class="field"><label for="movie-url">Video link</label><input id="movie-url" name="sourceUrl" type="url" placeholder="Google Drive share link or direct HTTPS video link"><small>Use a Google Drive file share link or a direct HTTPS video link, such as an MP4. Drive files must be shared so viewers can access them.</small></div>
@@ -75,14 +89,44 @@
           <div class="field"><label for="movie-video">Or video file</label><input id="movie-video" name="video" type="file" accept="video/*"><small>Large videos upload in smaller parts; keep this page open until publishing finishes.</small></div>
           <button class="primary-button" type="submit">Publish movie</button>
         </form>
-        <div class="manage-movie-list">${movieRows || '<div class="manage-empty">No movies published yet.</div>'}</div>
-      </section>`);
+          </section>
+          <section class="staff-list-panel" aria-label="Published movies">
+            <h2 class="section-title">Published <span class="result-count">(${movies.length})</span></h2>
+            <div class="manage-movie-list">${movieRows || '<div class="manage-empty">No movies published yet.</div>'}</div>
+          </section>
+        </div>
+      </section>
+      <section class="staff-panel${activePanel === 'announcement' ? '' : ' staff-panel-hidden'}" id="staff-panel-announcement" role="tabpanel" aria-labelledby="staff-tab-announcement" ${activePanel === 'announcement' ? '' : 'hidden'}>
+        <div class="staff-workspace announcement-workspace">
+          <section aria-labelledby="announcement-title">
+            <h2 class="section-title" id="announcement-title">${announcement ? 'Update announcement' : 'New announcement'}</h2>
+            <form class="add-form" id="announcement-form">
+              <div class="field"><label for="announcement-message">Message</label><textarea id="announcement-message" name="message" maxlength="500" placeholder="Write an announcement for visitors" required>${escapeHtml(announcement?.message || '')}</textarea></div>
+              <div class="field"><label for="announcement-expires">Hide announcement after</label><input id="announcement-expires" name="expiresAt" type="datetime-local" value="${announcement ? escapeHtml(new Date(new Date(announcement.expiresAt).getTime() - new Date(announcement.expiresAt).getTimezoneOffset() * 60000).toISOString().slice(0, 16)) : ''}" required></div>
+              <button class="primary-button" type="submit">${announcement ? 'Update announcement' : 'Publish announcement'}</button>
+              ${announcement ? '<button class="small-button remove announcement-remove" id="delete-announcement" type="button">Remove announcement</button>' : ''}
+            </form>
+          </section>
+          <section class="announcement-preview" aria-label="Announcement status">
+            <h2 class="section-title">On your public page</h2>
+            ${announcement ? `<div class="announcement-banner"><strong>Announcement</strong><p>${escapeHtml(announcement.message)}</p><span>Automatically hides ${escapeHtml(new Date(announcement.expiresAt).toLocaleString())}</span></div>` : '<div class="manage-empty">No announcement is currently published.</div>'}
+          </section>
+        </div>
+      </section>`;
 
+    app.querySelectorAll('[data-panel]').forEach((button) => button.addEventListener('click', () => {
+      activePanel = button.dataset.panel;
+      render();
+    }));
     app.querySelector('#add-form').addEventListener('submit', addEntries);
     app.querySelector('#movie-form').addEventListener('submit', addMovie);
+    app.querySelector('#announcement-form').addEventListener('submit', saveAnnouncement);
+    app.querySelector('#delete-announcement')?.addEventListener('click', deleteAnnouncement);
     app.querySelector('#delete-all').addEventListener('click', deleteAll);
     app.querySelectorAll('[data-delete]').forEach((button) => button.addEventListener('click', () => mutate('DELETE', { id: button.dataset.delete }, 'Entry deleted.')));
     app.querySelectorAll('[data-delete-movie]').forEach((button) => button.addEventListener('click', () => deleteMovie(button.dataset.deleteMovie)));
+    app.querySelectorAll('[data-move-entry]').forEach((button) => button.addEventListener('click', () => reorderItems('entries', button.dataset.moveEntry, Number(button.dataset.direction))));
+    app.querySelectorAll('[data-move-movie]').forEach((button) => button.addEventListener('click', () => reorderItems('movies', button.dataset.moveMovie, Number(button.dataset.direction))));
   }
 
   async function request(method = 'GET', data) {
@@ -95,6 +139,46 @@
     const result = await response.json();
     if (!response.ok) throw new Error(result.error || 'The change could not be saved.');
     return result;
+  }
+
+  async function announcementRequest(method, data) {
+    const response = await fetch('/api/announcements', {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: data ? JSON.stringify(data) : undefined,
+      cache: 'no-store'
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || 'The announcement could not be saved.');
+    return result;
+  }
+
+  async function reorderItems(type, id, direction) {
+    const items = type === 'entries' ? entries : movies;
+    const index = items.findIndex((item) => item.id === id);
+    const target = index + direction;
+    if (index < 0 || target < 0 || target >= items.length) return;
+    const reordered = [...items];
+    [reordered[index], reordered[target]] = [reordered[target], reordered[index]];
+    try {
+      if (type === 'entries') {
+        await request('PATCH', { ids: reordered.map((item) => item.id) });
+        await loadEntries();
+      } else {
+        const response = await fetch('/api/movies', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ids: reordered.map((item) => item.id) }),
+          cache: 'no-store'
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || 'Movies could not be reordered.');
+        await loadMovies();
+      }
+      notify('Order updated.');
+    } catch (error) {
+      notify(error.message);
+    }
   }
 
   async function movieFileRequest(action, data) {
@@ -216,6 +300,47 @@
     }
   }
 
+  async function saveAnnouncement(event) {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    const submit = event.currentTarget.querySelector('button[type="submit"]');
+    submit.disabled = true;
+    try {
+      const result = await announcementRequest('PUT', {
+        message: String(data.get('message')).trim(),
+        expiresAt: new Date(String(data.get('expiresAt'))).toISOString()
+      });
+      announcement = result.announcement;
+      render();
+      notify('Announcement published.');
+    } catch (error) {
+      notify(error.message);
+      submit.disabled = false;
+    }
+  }
+
+  async function deleteAnnouncement() {
+    try {
+      const result = await announcementRequest('DELETE');
+      announcement = result.announcement;
+      render();
+      notify('Announcement removed.');
+    } catch (error) {
+      notify(error.message);
+    }
+  }
+
+  async function loadAnnouncement() {
+    const response = await fetch('/api/announcements', { cache: 'no-store' });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || 'Announcement could not be loaded.');
+    if (JSON.stringify(result.announcement) !== JSON.stringify(announcement)) {
+      announcement = result.announcement;
+      if (movieUploadInProgress) refreshPending = true;
+      else render();
+    }
+  }
+
   async function loadEntries() {
     const savedEntries = await request('GET');
     const savedIds = new Set(savedEntries.map((entry) => entry.id));
@@ -272,6 +397,8 @@
     app.innerHTML = `<div class="empty"><strong>Staff tools unavailable</strong>${escapeHtml(error.message)}</div>`;
   });
   loadMovies().catch(() => {});
+  loadAnnouncement().catch(() => {});
   window.setInterval(() => { loadEntries().catch(() => {}); }, 15000);
   window.setInterval(() => { loadMovies().catch(() => {}); }, 15000);
+  window.setInterval(() => { loadAnnouncement().catch(() => {}); }, 15000);
 })();

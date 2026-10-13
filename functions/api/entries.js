@@ -48,6 +48,26 @@ export async function onRequestPost({ request, env }) {
   }
 }
 
+export async function onRequestPatch({ request, env }) {
+  const denied = requireSameOrigin(request);
+  if (denied) return denied;
+  try {
+    const body = await request.json();
+    const entries = await readEntries(env);
+    if (!Array.isArray(body?.ids) || body.ids.length !== entries.length ||
+      body.ids.some((id) => typeof id !== 'string') || new Set(body.ids).size !== entries.length ||
+      body.ids.some((id) => !entries.some((entry) => entry.id === id))) {
+      return json({ error: 'Provide each entry id exactly once to set the new order.' }, 400);
+    }
+    const byId = new Map(entries.map((entry) => [entry.id, entry]));
+    const reordered = body.ids.map((id) => byId.get(id));
+    await writeEntries(env, reordered);
+    return json(reordered);
+  } catch (error) {
+    return json({ error: error.message || 'Could not reorder entries.' }, 503);
+  }
+}
+
 export async function onRequestDelete({ request, env }) {
   const denied = requireSameOrigin(request);
   if (denied) return denied;
