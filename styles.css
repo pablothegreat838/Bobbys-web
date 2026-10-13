@@ -139,6 +139,8 @@
     .movie-card { min-width: 0; display: grid; gap: 9px; padding: 0; border: 0; background: transparent; color: var(--ink); text-align: left; }
     .movie-card:hover .movie-poster { outline: 2px solid var(--green); outline-offset: 2px; }
     .movie-poster { width: 100%; aspect-ratio: 2 / 3; object-fit: cover; border: 1px solid var(--line); border-radius: 4px; background: #e5e8df; }
+    .movie-poster-placeholder, .manage-movie-placeholder { display: grid; place-items: center; color: var(--green); font-size: 32px; }
+    .movie-poster-placeholder { background: #e5e8df; }
     .movie-card-title { overflow-wrap: anywhere; font: 600 14px/1.4 'Space Grotesk', sans-serif; }
     .movie-dialog { width: min(100% - 32px, 960px); max-width: 960px; padding: 14px; border: 1px solid #3e4940; border-radius: 6px; background: #18211b; color: white; }
     .movie-dialog::backdrop { background: #101610d9; }
@@ -146,12 +148,16 @@
     .movie-dialog-heading strong { overflow-wrap: anywhere; font: 600 16px 'Space Grotesk', sans-serif; }
     .movie-dialog .small-button { flex: 0 0 auto; }
     .movie-dialog video { display: block; width: 100%; max-height: min(72vh, 720px); background: #050705; }
+    .movie-dialog iframe { display: block; width: 100%; height: min(72vh, 720px); border: 0; background: #050705; }
+    .movie-dialog iframe[hidden], .movie-dialog video[hidden] { display: none; }
     .staff-movies { margin-top: 34px; }
     .movie-add-form { max-width: 520px; margin-bottom: 16px; }
     .manage-movie-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; }
     .manage-movie { display: grid; grid-template-columns: 48px minmax(0, 1fr) auto; align-items: center; gap: 10px; }
     .manage-movie img { width: 48px; aspect-ratio: 2 / 3; object-fit: cover; border-radius: 3px; background: #e5e8df; }
     .manage-movie strong { overflow-wrap: anywhere; font-size: 12px; }
+    .manage-movie-placeholder { width: 48px; aspect-ratio: 2 / 3; border-radius: 3px; background: #e5e8df; font-size: 18px; }
+    .manage-movie-type { color: var(--muted); font: 10px 'DM Mono', monospace; }
 
     @media (max-width: 650px) {
       .topbar { height: 60px; padding: 0 20px; }

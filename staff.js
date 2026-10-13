@@ -38,8 +38,9 @@
       </article>`).join('');
     const movieRows = movies.map((movie) => `
       <article class="manage-entry manage-movie">
-        <img src="/api/movie-media?key=${encodeURIComponent(movie.posterKey)}" alt="" loading="lazy">
+        ${movie.posterKey ? `<img src="/api/movie-media?key=${encodeURIComponent(movie.posterKey)}" alt="" loading="lazy">` : '<span class="manage-movie-placeholder" aria-hidden="true">▶</span>'}
         <strong>${escapeHtml(movie.title)}</strong>
+        ${movie.sourceUrl || movie.embedUrl ? '<span class="manage-movie-type">Link</span>' : ''}
         <button class="small-button remove" type="button" data-delete-movie="${escapeHtml(movie.id)}" aria-label="Delete ${escapeHtml(movie.title)}">Delete</button>
       </article>`).join('');
 
@@ -69,8 +70,9 @@
         <h2 class="section-title" id="movies-title">Movies <span class="result-count">(${movies.length})</span></h2>
         <form class="add-form movie-add-form" id="movie-form">
           <div class="field"><label for="movie-title">Movie name</label><input id="movie-title" name="title" type="text" maxlength="200" placeholder="Movie title" required></div>
-          <div class="field"><label for="movie-poster">Poster image</label><input id="movie-poster" name="poster" type="file" accept="image/*" required></div>
-          <div class="field"><label for="movie-video">Video file</label><input id="movie-video" name="video" type="file" accept="video/*" required><small>Large videos upload in smaller parts; keep this page open until publishing finishes.</small></div>
+          <div class="field"><label for="movie-url">Video link</label><input id="movie-url" name="sourceUrl" type="url" placeholder="Google Drive share link or direct HTTPS video link"><small>Use a Google Drive file share link or a direct HTTPS video link, such as an MP4. Drive files must be shared so viewers can access them.</small></div>
+          <div class="field"><label for="movie-poster">Poster image (optional)</label><input id="movie-poster" name="poster" type="file" accept="image/*"></div>
+          <div class="field"><label for="movie-video">Or video file</label><input id="movie-video" name="video" type="file" accept="video/*"><small>Large videos upload in smaller parts; keep this page open until publishing finishes.</small></div>
           <button class="primary-button" type="submit">Publish movie</button>
         </form>
         <div class="manage-movie-list">${movieRows || '<div class="manage-empty">No movies published yet.</div>'}</div>
@@ -142,17 +144,29 @@
     const submit = form.querySelector('button[type="submit"]');
     const data = new FormData(form);
     const uploadedKeys = [];
+    const sourceUrl = String(data.get('sourceUrl')).trim();
+    const videoFile = data.get('video');
+    const posterFile = data.get('poster');
     submit.disabled = true;
     movieUploadInProgress = true;
     try {
-      const posterKey = await uploadMovieFile(data.get('poster'), 'poster');
-      uploadedKeys.push({ key: posterKey, kind: 'poster' });
-      const videoKey = await uploadMovieFile(data.get('video'), 'video');
-      uploadedKeys.push({ key: videoKey, kind: 'video' });
+      if (Boolean(sourceUrl) === Boolean(videoFile?.size)) {
+        throw new Error('Enter a video link or choose a video file, but not both.');
+      }
+      let posterKey;
+      if (posterFile?.size) {
+        posterKey = await uploadMovieFile(posterFile, 'poster');
+        uploadedKeys.push({ key: posterKey, kind: 'poster' });
+      }
+      let videoKey;
+      if (videoFile?.size) {
+        videoKey = await uploadMovieFile(videoFile, 'video');
+        uploadedKeys.push({ key: videoKey, kind: 'video' });
+      }
       const response = await fetch('/api/movies', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: String(data.get('title')).trim(), posterKey, videoKey }),
+        body: JSON.stringify({ title: String(data.get('title')).trim(), posterKey, videoKey, sourceUrl }),
         cache: 'no-store'
       });
       const result = await response.json();
@@ -185,7 +199,7 @@
   }
 
   async function deleteMovie(id) {
-    if (!window.confirm('Delete this movie and its uploaded files?')) return;
+    if (!window.confirm('Delete this movie?')) return;
     try {
       const response = await fetch('/api/movies', {
         method: 'DELETE',

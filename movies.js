@@ -19,7 +19,7 @@
     const filtered = movies.filter((movie) => movie.title.toLowerCase().includes(query));
     const cards = filtered.map((movie) => `
       <button class="movie-card" type="button" data-movie="${escapeHtml(movie.id)}" aria-label="Play ${escapeHtml(movie.title)}">
-        <img class="movie-poster" src="${escapeHtml(mediaUrl(movie.posterKey))}" alt="${escapeHtml(movie.title)} poster" loading="lazy">
+        ${movie.posterKey ? `<img class="movie-poster" src="${escapeHtml(mediaUrl(movie.posterKey))}" alt="${escapeHtml(movie.title)} poster" loading="lazy">` : '<span class="movie-poster movie-poster-placeholder" aria-hidden="true">▶</span>'}
         <span class="movie-card-title">${escapeHtml(movie.title)}</span>
       </button>`).join('');
 
@@ -37,6 +37,7 @@
       <dialog class="movie-dialog" id="movie-dialog" aria-label="Movie player">
         <div class="movie-dialog-heading"><strong id="movie-dialog-title"></strong><button class="small-button" id="close-movie" type="button" aria-label="Close movie">Close</button></div>
         <video id="movie-player" controls playsinline></video>
+        <iframe id="movie-embed" title="Movie player" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>
       </dialog>`;
 
     const search = app.querySelector('#movie-search');
@@ -51,14 +52,21 @@
 
     const dialog = app.querySelector('#movie-dialog');
     const player = app.querySelector('#movie-player');
+    const embed = app.querySelector('#movie-embed');
     app.querySelectorAll('[data-movie]').forEach((button) => button.addEventListener('click', () => {
       const movie = movies.find((item) => item.id === button.dataset.movie);
       if (!movie) return;
       app.querySelector('#movie-dialog-title').textContent = movie.title;
-      player.poster = mediaUrl(movie.posterKey);
-      player.src = mediaUrl(movie.videoKey);
+      player.hidden = !movie.videoKey && !movie.sourceUrl;
+      embed.hidden = !movie.embedUrl;
+      if (movie.embedUrl) {
+        embed.src = movie.embedUrl;
+      } else {
+        player.poster = movie.posterKey ? mediaUrl(movie.posterKey) : '';
+        player.src = movie.videoKey ? mediaUrl(movie.videoKey) : movie.sourceUrl;
+      }
       dialog.showModal();
-      player.play().catch(() => {});
+      if (!movie.embedUrl) player.play().catch(() => {});
     }));
     app.querySelector('#close-movie').addEventListener('click', () => dialog.close());
     dialog.addEventListener('click', (event) => {
@@ -67,7 +75,9 @@
     dialog.addEventListener('close', () => {
       player.pause();
       player.removeAttribute('src');
+      player.removeAttribute('poster');
       player.load();
+      embed.removeAttribute('src');
     });
   }
 

@@ -9,11 +9,11 @@ Static Cloudflare Pages link collection. The public page is `home.html`; `index.
 3. In Cloudflare, open **Workers & Pages → your Pages project → Settings → Functions → KV namespace bindings**. Add a binding named exactly `ENTRIES`, create/select a KV namespace for it, and save.
 4. In **Settings → Functions → R2 bucket bindings**, add a binding named exactly `MOVIES` and select a bucket for uploaded posters and video files.
 5. Add both bindings to the **Production** environment. If testing a Preview deployment, configure them there too.
-6. Redeploy the project after saving the bindings. Open `/staff` to add named entries, paste multiple links into each entry, and choose a category; use its Movies section to publish a title with a poster and video file.
+6. Redeploy the project after saving the bindings. Open `/staff` to add named entries, paste multiple links into each entry, and choose a category; use its Movies section to publish an uploaded video or a Google Drive share link/direct HTTPS video link. Posters are optional.
 
 ## Data persistence
 
-Entries and movie details are saved to the `ENTRIES` KV namespace as they are changed; uploaded posters and videos are saved to the `MOVIES` R2 bucket. Updating or redeploying the website does not erase this data. Keep the same KV namespace and R2 bucket connected to the Production environment for every deployment. Preview deployments and local Wrangler storage can use separate data, so changes made there do not automatically appear on Production. Deleting or replacing the bound namespace or bucket will make its data unavailable.
+Entries and movie details are saved to the `ENTRIES` KV namespace as they are changed; uploaded posters and videos are saved to the `MOVIES` R2 bucket. Movie links can use a Google Drive file share URL or a direct HTTPS video URL (for example, an MP4); Google Drive files must be shared with viewers. Updating or redeploying the website does not erase this data. Keep the same KV namespace and R2 bucket connected to the Production environment for every deployment. Preview deployments and local Wrangler storage can use separate data, so changes made there do not automatically appear on Production. Deleting or replacing the bound namespace or bucket will make its data unavailable.
 
 ## Links API
 
