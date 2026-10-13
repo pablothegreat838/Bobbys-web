@@ -25,10 +25,10 @@
       const urls = entry.links.map((value) => {
         try {
           const url = new URL(value);
-          if (!['http:', 'https:'].includes(url.protocol)) return '';
+          if (!['http:', 'https:'].includes(url.protocol)) return escapeHtml(value);
           return `<a href="${escapeHtml(url.href)}" target="_blank" rel="noopener noreferrer">${escapeHtml(url.href)}</a>`;
         } catch {
-          return '';
+          return escapeHtml(value);
         }
       }).filter(Boolean);
       return `<article class="published-link" style="animation-delay:${Math.min(index * 25, 150)}ms">

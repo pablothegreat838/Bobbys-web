@@ -29,16 +29,9 @@ export async function onRequestPost({ request, env }) {
     const links = [];
     for (const value of body.links) {
       if (typeof value !== 'string' || !value.trim() || value.trim().length > MAX_URL_LENGTH) {
-        return json({ error: `Links must be valid HTTP or HTTPS URLs no longer than ${MAX_URL_LENGTH} characters.` }, 400);
+        return json({ error: `Links must contain 1 to ${MAX_URL_LENGTH} characters.` }, 400);
       }
-      let url;
-      try {
-        url = new URL(value.trim());
-      } catch {
-        return json({ error: 'Each link must be a valid HTTP or HTTPS URL.' }, 400);
-      }
-      if (!['http:', 'https:'].includes(url.protocol)) return json({ error: 'Each link must use HTTP or HTTPS.' }, 400);
-      links.push(url.toString());
+      links.push(value.trim());
     }
     const timestamp = new Date().toISOString();
     const entry = {
