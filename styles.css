@@ -1,7 +1,7 @@
     :root {
       color-scheme: light;
-      --paper: #f6f5f0;
-      --surface: #fffefa;
+      --paper: #ffffff;
+      --surface: #ffffff;
       --ink: #202622;
       --muted: #737a73;
       --line: #e4e5dc;
@@ -17,7 +17,7 @@
       color: var(--ink);
     }
 
-    * { box-sizing: border-box; }
+    * { box-sizing: border-box; border-radius: 0 !important; box-shadow: none !important; }
     body { margin: 0; min-width: 320px; min-height: 100vh; }
     button, input, textarea, select { font: inherit; }
     button { cursor: pointer; }
@@ -33,7 +33,7 @@
       justify-content: space-between;
       padding: 0 max(24px, calc((100vw - 1080px) / 2));
       border-bottom: 1px solid var(--line);
-      background: rgba(255, 254, 250, .82);
+      background: var(--surface);
     }
     .brand { color: var(--ink); text-decoration: none; font: 700 18px 'Space Grotesk', sans-serif; }
     .brand span { color: var(--green); }
@@ -61,7 +61,7 @@
     .filter-button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 3px #17251c1a; }
     .result-count { color: var(--muted); font: 11px 'DM Mono', monospace; }
     .list { display: grid; gap: 8px; }
-    .entry { min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 17px 18px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); animation: arrive .24s ease-out both; }
+    .entry { min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 17px 18px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); }
     .entry-copy { min-width: 0; overflow-wrap: anywhere; white-space: pre-wrap; line-height: 1.55; font-size: 14px; }
     .entry-meta { display: flex; flex: 0 0 auto; align-items: flex-end; flex-direction: column; gap: 6px; }
     .empty { padding: 38px 20px; border: 1px dashed #d4d8cd; border-radius: 6px; color: var(--muted); text-align: center; font-size: 14px; line-height: 1.7; }
@@ -140,7 +140,7 @@
     .small-button:hover, .back-link:hover { background: #f2f4ee; }
     .small-button.remove { color: var(--red); }
     .manage-empty { padding: 28px 16px; border: 1px dashed #d4d8cd; border-radius: 5px; color: var(--muted); font-size: 13px; text-align: center; }
-    .toast { position: fixed; right: 22px; bottom: 22px; z-index: 2; max-width: calc(100vw - 44px); padding: 12px 16px; border-radius: 5px; background: var(--ink); color: white; font-size: 13px; box-shadow: 0 8px 25px #17251c26; animation: arrive .18s ease-out; }
+    .toast { position: fixed; right: 22px; bottom: 22px; z-index: 2; max-width: calc(100vw - 44px); padding: 12px 16px; border-radius: 5px; background: var(--ink); color: white; font-size: 13px; }
     .toast[hidden] { display: none; }
     @keyframes arrive { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
 
@@ -182,6 +182,11 @@
     .manage-movie-placeholder { width: 40px; aspect-ratio: 2 / 3; border-radius: 3px; background: #e5e8df; font-size: 18px; }
     .manage-movie-copy { min-width: 0; display: grid; gap: 4px; }
     .manage-movie-type { color: var(--muted); font: 10px 'DM Mono', monospace; }
+    .site-text-editor { height: 100%; overflow-y: auto; padding-right: 5px; }
+    .site-text-form { max-width: 820px; }
+    .site-text-group { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 16px; margin-bottom: 24px; }
+    .site-text-group .section-title { grid-column: 1 / -1; padding-bottom: 8px; border-bottom: 1px solid var(--line); }
+    .site-text-group .field textarea { min-height: 76px; }
 
     @media (max-width: 650px) {
       .topbar { height: 60px; padding: 0 20px; }
@@ -205,6 +210,8 @@
       .top-navigation { gap: 14px; }
       .movie-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 12px; }
       .manage-movie-list { grid-template-columns: 1fr; }
+      .site-text-editor { overflow: visible; }
+      .site-text-group { grid-template-columns: 1fr; }
     }
     @media (prefers-reduced-motion: reduce) {
       *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; }

@@ -5,6 +5,7 @@
   let entries = [];
   let movies = [];
   let announcement = null;
+  let siteText = null;
   let activePanel = 'entries';
   let pendingEntries = [];
   let hasRendered = false;
@@ -25,6 +26,13 @@
 
   function render() {
     hasRendered = true;
+    const siteTextGroups = siteText?.fields.reduce((groups, field) => {
+      groups[field.page] ||= [];
+      const id = `site-text-${field.key.replace(/[^a-zA-Z0-9_-]/g, '-')}`;
+      groups[field.page].push(`<div class="field"><label for="${id}">${escapeHtml(field.label)}</label><textarea id="${id}" name="${escapeHtml(field.key)}" maxlength="2000" rows="2">${escapeHtml(siteText.content[field.key] ?? '')}</textarea></div>`);
+      return groups;
+    }, {}) || {};
+    const siteTextForm = siteText ? Object.entries(siteTextGroups).map(([page, fields]) => `<section class="site-text-group"><h2 class="section-title">${escapeHtml(page)}</h2>${fields.join('')}</section>`).join('') : '<div class="manage-empty">Loading site text...</div>';
     const rows = entries.map((entry, index) => `
       <article class="manage-entry">
         <div class="manage-top">
@@ -60,6 +68,7 @@
         <button class="staff-tab" id="staff-tab-entries" type="button" role="tab" aria-selected="${activePanel === 'entries'}" aria-controls="staff-panel-entries" data-panel="entries">Links <span>${entries.length}</span></button>
         <button class="staff-tab" id="staff-tab-movies" type="button" role="tab" aria-selected="${activePanel === 'movies'}" aria-controls="staff-panel-movies" data-panel="movies">Movies <span>${movies.length}</span></button>
         <button class="staff-tab" id="staff-tab-announcement" type="button" role="tab" aria-selected="${activePanel === 'announcement'}" aria-controls="staff-panel-announcement" data-panel="announcement">Announcement</button>
+        <button class="staff-tab" id="staff-tab-site-text" type="button" role="tab" aria-selected="${activePanel === 'site-text'}" aria-controls="staff-panel-site-text" data-panel="site-text">Site text</button>
       </div>
       <section class="staff-panel${activePanel === 'entries' ? '' : ' staff-panel-hidden'}" id="staff-panel-entries" role="tabpanel" aria-labelledby="staff-tab-entries" ${activePanel === 'entries' ? '' : 'hidden'}>
         <div class="staff-workspace">
@@ -114,6 +123,17 @@
         </div>
       </section>`;
 
+    app.insertAdjacentHTML('beforeend', `
+      <section class="staff-panel${activePanel === 'site-text' ? '' : ' staff-panel-hidden'}" id="staff-panel-site-text" role="tabpanel" aria-labelledby="staff-tab-site-text" ${activePanel === 'site-text' ? '' : 'hidden'}>
+        <div class="site-text-editor">
+          <form id="site-text-form" class="site-text-form">
+            <p class="intro">Edit public page copy. Changes are shared with every visitor.</p>
+            ${siteTextForm}
+            ${siteText ? '<button class="primary-button" type="submit">Save site text</button>' : ''}
+          </form>
+        </div>
+      </section>`);
+
     app.querySelectorAll('[data-panel]').forEach((button) => button.addEventListener('click', () => {
       activePanel = button.dataset.panel;
       render();
@@ -121,6 +141,7 @@
     app.querySelector('#add-form').addEventListener('submit', addEntries);
     app.querySelector('#movie-form').addEventListener('submit', addMovie);
     app.querySelector('#announcement-form').addEventListener('submit', saveAnnouncement);
+    app.querySelector('#site-text-form')?.addEventListener('submit', saveSiteText);
     app.querySelector('#delete-announcement')?.addEventListener('click', deleteAnnouncement);
     app.querySelector('#delete-all').addEventListener('click', deleteAll);
     app.querySelectorAll('[data-delete]').forEach((button) => button.addEventListener('click', () => mutate('DELETE', { id: button.dataset.delete }, 'Entry deleted.')));
@@ -151,6 +172,35 @@
     const result = await response.json();
     if (!response.ok) throw new Error(result.error || 'The announcement could not be saved.');
     return result;
+  }
+
+  async function siteTextRequest(method = 'GET', data) {
+    const response = await fetch('/api/site-content', {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: data ? JSON.stringify(data) : undefined,
+      cache: 'no-store'
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || 'Site text could not be saved.');
+    return result;
+  }
+
+  async function saveSiteText(event) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const submit = form.querySelector('button[type="submit"]');
+    const content = Object.fromEntries(siteText.fields.map(({ key }) => [key, String(new FormData(form).get(key) || '')]));
+    submit.disabled = true;
+    try {
+      const result = await siteTextRequest('PUT', { content });
+      siteText = { ...siteText, content: result.content };
+      render();
+      notify('Site text saved.');
+    } catch (error) {
+      notify(error.message);
+      submit.disabled = false;
+    }
   }
 
   async function reorderItems(type, id, direction) {
@@ -341,6 +391,14 @@
     }
   }
 
+  async function loadSiteText() {
+    const result = await siteTextRequest();
+    if (JSON.stringify(result) !== JSON.stringify(siteText)) {
+      siteText = result;
+      render();
+    }
+  }
+
   async function loadEntries() {
     const savedEntries = await request('GET');
     const savedIds = new Set(savedEntries.map((entry) => entry.id));
@@ -398,6 +456,7 @@
   });
   loadMovies().catch(() => {});
   loadAnnouncement().catch(() => {});
+  loadSiteText().catch((error) => notify(error.message));
   window.setInterval(() => { loadEntries().catch(() => {}); }, 15000);
   window.setInterval(() => { loadMovies().catch(() => {}); }, 15000);
   window.setInterval(() => { loadAnnouncement().catch(() => {}); }, 15000);

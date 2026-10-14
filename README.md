@@ -1,6 +1,6 @@
 # Bobbys-web
 
-Static Cloudflare Pages link collection. The public page is `home.html`; `index.html` forwards the root URL to it. Bob's editor is served at `/staff` and uses Cloudflare Pages Functions plus KV for shared entry storage. Staff editing is password-free and publicly accessible; anyone can add or delete entries.
+Static Cloudflare Pages link collection. The public page is `home.html`; `index.html` forwards the root URL to it. Bob's editor is served at `/staff` and uses Cloudflare Pages Functions plus KV for shared content. Staff editing is password-free and publicly accessible; anyone can change public page text, add or delete entries, and manage movies and announcements.
 
 ## Cloudflare Pages setup
 
@@ -13,7 +13,7 @@ Static Cloudflare Pages link collection. The public page is `home.html`; `index.
 
 ## Data persistence
 
-Entries, their display order, movie details, movie order, and the current announcement are saved to the `ENTRIES` KV namespace. Announcements appear on the links page until their scheduled expiry and are then hidden automatically. Uploaded posters and videos are saved to the `MOVIES` R2 bucket. Movie links can use a Google Drive file share URL or a direct HTTPS video URL (for example, an MP4); Google Drive files must be shared with viewers. Updating or redeploying the website does not erase this data. Keep the same KV namespace and R2 bucket connected to the Production environment for every deployment. Preview deployments and local Wrangler storage can use separate data, so changes made there do not automatically appear on Production. Deleting or replacing the bound namespace or bucket will make its data unavailable.
+Entries, their display order, movie details, movie order, the current announcement, and editable page text are saved to the `ENTRIES` KV namespace. Use **Site text** in `/staff` to change copy on the Links, Movies, and Terms pages and the shared footer. Changes appear for all visitors. Announcements appear on the links page until their scheduled expiry and are then hidden automatically. Uploaded posters and videos are saved to the `MOVIES` R2 bucket. Movie links can use a Google Drive file share URL or a direct HTTPS video URL (for example, an MP4); Google Drive files must be shared with viewers. Updating or redeploying the website does not erase this data. Keep the same KV namespace and R2 bucket connected to the Production environment for every deployment. Preview deployments and local Wrangler storage can use separate data, so changes made there do not automatically appear on Production. Deleting or replacing the bound namespace or bucket will make its data unavailable.
 
 ## Links API
 

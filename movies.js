@@ -12,6 +12,7 @@
   }
 
   function render() {
+    const text = window.siteText;
     const focusedSearch = document.activeElement?.id === 'movie-search';
     const selectionStart = focusedSearch ? document.activeElement.selectionStart : null;
     const selectionEnd = focusedSearch ? document.activeElement.selectionEnd : null;
@@ -24,15 +25,15 @@
       </button>`).join('');
 
     app.innerHTML = `
-      <p class="eyebrow">The movie collection</p>
-      <h1>Movies.</h1>
+      <p class="eyebrow">${escapeHtml(text('movies.eyebrow', 'The movie collection'))}</p>
+      <h1>${escapeHtml(text('movies.title', 'Movies.'))}</h1>
       <div class="movie-search-wrap">
         <svg class="search-icon" width="19" height="19" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.8" stroke="currentColor" stroke-width="1.7"/><path d="m16 16 4.5 4.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
-        <input class="search-input" id="movie-search" type="search" placeholder="Search movies..." value="${escapeHtml(searchTerm)}" autocomplete="off" aria-label="Search movies">
+        <input class="search-input" id="movie-search" type="search" placeholder="${escapeHtml(text('movies.search', 'Search movies...'))}" value="${escapeHtml(searchTerm)}" autocomplete="off" aria-label="Search movies">
       </div>
       <div class="movie-results-count">${filtered.length} ${filtered.length === 1 ? 'MOVIE' : 'MOVIES'}</div>
       <section class="movie-grid" aria-label="Movies">
-        ${cards || `<div class="empty"><strong>${movies.length ? 'No matching movies' : 'No movies added yet'}</strong>${movies.length ? 'Try another title.' : 'New movies will appear here.'}</div>`}
+        ${cards || `<div class="empty"><strong>${movies.length ? 'No matching movies' : escapeHtml(text('movies.emptyTitle', 'No movies added yet'))}</strong>${movies.length ? 'Try another title.' : escapeHtml(text('movies.emptyMessage', 'New movies will appear here.'))}</div>`}
       </section>
       <dialog class="movie-dialog" id="movie-dialog" aria-label="Movie player">
         <div class="movie-dialog-heading"><strong id="movie-dialog-title"></strong><button class="small-button" id="close-movie" type="button" aria-label="Close movie">Close</button></div>
@@ -82,6 +83,7 @@
   }
 
   async function loadMovies() {
+    await window.siteContentReady;
     const response = await fetch('/api/movies', { cache: 'no-store' });
     const result = await response.json();
     if (!response.ok) throw new Error(result.error || 'Movies could not be loaded.');
