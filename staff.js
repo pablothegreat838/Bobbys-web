@@ -34,7 +34,7 @@
     }, {}) || {};
     const siteTextForm = siteText ? Object.entries(siteTextGroups).map(([page, fields]) => `<section class="site-text-group"><h2 class="section-title">${escapeHtml(page)}</h2>${fields.join('')}</section>`).join('') : '<div class="manage-empty">Loading site text...</div>';
     const rows = entries.map((entry, index) => `
-      <article class="manage-entry">
+      <article class="manage-entry" data-entry-drop="${escapeHtml(entry.id)}">
         <div class="manage-top">
           <div class="manage-entry-copy">
             <strong>${index + 1}. ${escapeHtml(entry.name)}</strong>
@@ -42,8 +42,9 @@
             <span class="entry-category">${escapeHtml(entry.category || 'websites')}</span>
           </div>
           <div class="manage-actions">
-            <button class="small-button" type="button" data-move-entry="${escapeHtml(entry.id)}" data-direction="-1" aria-label="Move ${escapeHtml(entry.name)} up" ${index === 0 ? 'disabled' : ''}>Up</button>
-            <button class="small-button" type="button" data-move-entry="${escapeHtml(entry.id)}" data-direction="1" aria-label="Move ${escapeHtml(entry.name)} down" ${index === entries.length - 1 ? 'disabled' : ''}>Down</button>
+            <button class="drag-handle" type="button" draggable="true" data-entry-drag="${escapeHtml(entry.id)}" aria-label="Drag to reorder ${escapeHtml(entry.name)}" title="Drag to reorder">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><circle cx="5" cy="3" r="1"/><circle cx="11" cy="3" r="1"/><circle cx="5" cy="8" r="1"/><circle cx="11" cy="8" r="1"/><circle cx="5" cy="13" r="1"/><circle cx="11" cy="13" r="1"/></svg>
+            </button>
             <button class="small-button" type="button" data-pin-entry="${escapeHtml(entry.id)}" data-pinned="${entry.pinned === true}" aria-label="${entry.pinned === true ? 'Unpin' : 'Pin'} ${escapeHtml(entry.name)}">${entry.pinned === true ? 'Unpin' : 'Pin'}</button>
             <button class="small-button remove" type="button" data-delete="${escapeHtml(entry.id)}" aria-label="Delete entry">Delete</button>
           </div>
@@ -147,9 +148,40 @@
     app.querySelector('#delete-all').addEventListener('click', deleteAll);
     app.querySelectorAll('[data-delete]').forEach((button) => button.addEventListener('click', () => mutate('DELETE', { id: button.dataset.delete }, 'Entry deleted.')));
     app.querySelectorAll('[data-delete-movie]').forEach((button) => button.addEventListener('click', () => deleteMovie(button.dataset.deleteMovie)));
-    app.querySelectorAll('[data-move-entry]').forEach((button) => button.addEventListener('click', () => reorderItems('entries', button.dataset.moveEntry, Number(button.dataset.direction))));
+    app.querySelectorAll('[data-entry-drag]').forEach((handle) => {
+      handle.addEventListener('dragstart', (event) => {
+        event.dataTransfer.effectAllowed = 'move';
+        event.dataTransfer.setData('text/plain', handle.dataset.entryDrag);
+        handle.closest('[data-entry-drop]').classList.add('is-dragging');
+      });
+      handle.addEventListener('dragend', () => {
+        app.querySelectorAll('[data-entry-drop]').forEach((row) => row.classList.remove('is-dragging', 'is-drop-target'));
+      });
+      handle.addEventListener('keydown', (event) => {
+        if (!event.altKey || !['ArrowUp', 'ArrowDown'].includes(event.key)) return;
+        event.preventDefault();
+        const index = entries.findIndex((entry) => entry.id === handle.dataset.entryDrag);
+        const target = index + (event.key === 'ArrowUp' ? -1 : 1);
+        if (target >= 0 && target < entries.length) reorderEntry(handle.dataset.entryDrag, entries[target].id);
+      });
+    });
+    app.querySelectorAll('[data-entry-drop]').forEach((row) => {
+      row.addEventListener('dragover', (event) => {
+        if (!event.dataTransfer.types.includes('text/plain')) return;
+        event.preventDefault();
+        event.dataTransfer.dropEffect = 'move';
+        app.querySelectorAll('[data-entry-drop]').forEach((item) => item.classList.toggle('is-drop-target', item === row));
+      });
+      row.addEventListener('dragleave', (event) => {
+        if (!row.contains(event.relatedTarget)) row.classList.remove('is-drop-target');
+      });
+      row.addEventListener('drop', (event) => {
+        event.preventDefault();
+        reorderEntry(event.dataTransfer.getData('text/plain'), row.dataset.entryDrop);
+      });
+    });
     app.querySelectorAll('[data-pin-entry]').forEach((button) => button.addEventListener('click', () => pinEntry(button.dataset.pinEntry, button.dataset.pinned !== 'true')));
-    app.querySelectorAll('[data-move-movie]').forEach((button) => button.addEventListener('click', () => reorderItems('movies', button.dataset.moveMovie, Number(button.dataset.direction))));
+    app.querySelectorAll('[data-move-movie]').forEach((button) => button.addEventListener('click', () => reorderItems(button.dataset.moveMovie, Number(button.dataset.direction))));
   }
 
   async function request(method = 'GET', data) {
@@ -205,29 +237,39 @@
     }
   }
 
-  async function reorderItems(type, id, direction) {
-    const items = type === 'entries' ? entries : movies;
-    const index = items.findIndex((item) => item.id === id);
+  async function reorderItems(id, direction) {
+    const index = movies.findIndex((item) => item.id === id);
     const target = index + direction;
-    if (index < 0 || target < 0 || target >= items.length) return;
-    const reordered = [...items];
+    if (index < 0 || target < 0 || target >= movies.length) return;
+    const reordered = [...movies];
     [reordered[index], reordered[target]] = [reordered[target], reordered[index]];
     try {
-      if (type === 'entries') {
-        await request('PATCH', { ids: reordered.map((item) => item.id) });
-        await loadEntries();
-      } else {
-        const response = await fetch('/api/movies', {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ids: reordered.map((item) => item.id) }),
-          cache: 'no-store'
-        });
-        const result = await response.json();
-        if (!response.ok) throw new Error(result.error || 'Movies could not be reordered.');
-        await loadMovies();
-      }
+      const response = await fetch('/api/movies', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: reordered.map((item) => item.id) }),
+        cache: 'no-store'
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Movies could not be reordered.');
+      await loadMovies();
       notify('Order updated.');
+    } catch (error) {
+      notify(error.message);
+    }
+  }
+
+  async function reorderEntry(id, targetId) {
+    const sourceIndex = entries.findIndex((entry) => entry.id === id);
+    const targetIndex = entries.findIndex((entry) => entry.id === targetId);
+    if (sourceIndex < 0 || targetIndex < 0 || sourceIndex === targetIndex) return;
+    const reordered = [...entries];
+    const [entry] = reordered.splice(sourceIndex, 1);
+    reordered.splice(sourceIndex < targetIndex ? targetIndex - 1 : targetIndex, 0, entry);
+    try {
+      await request('PATCH', { ids: reordered.map((item) => item.id) });
+      await loadEntries();
+      notify('Entry order updated.');
     } catch (error) {
       notify(error.message);
     }
