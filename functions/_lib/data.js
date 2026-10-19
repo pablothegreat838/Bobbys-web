@@ -26,6 +26,7 @@ export async function readEntries(env) {
         name: typeof entry.name === 'string' ? entry.name : entry.text,
         links: Array.isArray(entry.links) ? entry.links.filter((value) => typeof value === 'string') : legacyLinks,
         category: ['websites', 'eagler', 'movies'].includes(entry.category) ? entry.category : 'websites',
+        pinned: entry.pinned === true,
         createdAt: entry.createdAt || null
       };
     });

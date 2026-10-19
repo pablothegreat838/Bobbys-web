@@ -6,6 +6,7 @@
   let announcementTimeout;
   let activeCategory = 'all';
   let searchTerm = '';
+  const expandedEntries = new Set();
 
   function escapeHtml(value) {
     return String(value).replace(/[&<>"']/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]);
@@ -39,7 +40,10 @@
       return matchesQuery && matchesCategory;
     });
     const rows = filtered.map((entry, index) => {
-      const urls = entry.links.map((value) => {
+      const expandable = entry.links.length > 100;
+      const expanded = expandedEntries.has(entry.id);
+      const visibleLinks = expandable && !expanded ? entry.links.slice(0, 100) : entry.links;
+      const urls = visibleLinks.map((value) => {
         try {
           const url = new URL(value);
           if (!['http:', 'https:'].includes(url.protocol)) return escapeHtml(value);
@@ -48,11 +52,13 @@
           return escapeHtml(value);
         }
       }).filter(Boolean);
-      return `<article class="published-link" style="animation-delay:${Math.min(index * 25, 150)}ms">
+      return `<article class="published-link${entry.pinned ? ' is-pinned' : ''}" style="animation-delay:${Math.min(index * 25, 150)}ms">
         <div class="published-link-title">
           <strong><span class="entry-number">#${entry.number}</span> ${escapeHtml(entry.name)}</strong>
+          ${entry.pinned ? '<span class="entry-pinned">Pinned</span>' : ''}
           <span class="entry-category">${escapeHtml(entry.category)}</span>
           <span class="entry-url-list">${urls.join(' <span aria-hidden="true">&middot;</span> ')}</span>
+          ${expandable ? `<button class="entry-links-toggle" type="button" data-expand-entry="${escapeHtml(entry.id)}" aria-expanded="${expanded}">${expanded ? 'Show less' : `Show ${entry.links.length - 100} more links`}</button>` : ''}
         </div>
       </article>`;
     }).join('');
@@ -89,6 +95,12 @@
       activeCategory = button.dataset.category;
       render();
     }));
+    app.querySelectorAll('[data-expand-entry]').forEach((button) => button.addEventListener('click', () => {
+      const id = button.dataset.expandEntry;
+      if (expandedEntries.has(id)) expandedEntries.delete(id);
+      else expandedEntries.add(id);
+      render();
+    }));
   }
 
   async function loadEntries() {
@@ -104,9 +116,11 @@
     }
     const savedEntries = await entriesResponse.json();
     const entriesFromApi = savedEntries.map((entry) => ({
+      id: entry.id,
       name: entry.name || entry.text || 'Unnamed entry',
       links: Array.isArray(entry.links) ? entry.links : [],
-      category: categories.includes(entry.category) ? entry.category : 'websites'
+      category: categories.includes(entry.category) ? entry.category : 'websites',
+      pinned: entry.pinned === true
     }));
     let legacyLinks = [];
     if (announcementResponse?.ok) {
@@ -116,9 +130,11 @@
     }
     if (linksResponse?.ok) {
       const publishedLinks = await linksResponse.json();
-      legacyLinks = publishedLinks.map((link) => ({ name: link.title, links: [link.url], category: link.category }));
+      legacyLinks = publishedLinks.map((link, index) => ({ id: `legacy-${index}`, name: link.title, links: [link.url], category: link.category }));
     }
-    entries = [...entriesFromApi, ...legacyLinks].map((entry, index) => ({ ...entry, number: index + 1 }));
+    entries = [...entriesFromApi, ...legacyLinks]
+      .sort((first, second) => Number(second.pinned === true) - Number(first.pinned === true))
+      .map((entry, index) => ({ ...entry, number: index + 1 }));
     render();
   }
 

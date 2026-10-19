@@ -44,6 +44,7 @@
           <div class="manage-actions">
             <button class="small-button" type="button" data-move-entry="${escapeHtml(entry.id)}" data-direction="-1" aria-label="Move ${escapeHtml(entry.name)} up" ${index === 0 ? 'disabled' : ''}>Up</button>
             <button class="small-button" type="button" data-move-entry="${escapeHtml(entry.id)}" data-direction="1" aria-label="Move ${escapeHtml(entry.name)} down" ${index === entries.length - 1 ? 'disabled' : ''}>Down</button>
+            <button class="small-button" type="button" data-pin-entry="${escapeHtml(entry.id)}" data-pinned="${entry.pinned === true}" aria-label="${entry.pinned === true ? 'Unpin' : 'Pin'} ${escapeHtml(entry.name)}">${entry.pinned === true ? 'Unpin' : 'Pin'}</button>
             <button class="small-button remove" type="button" data-delete="${escapeHtml(entry.id)}" aria-label="Delete entry">Delete</button>
           </div>
         </div>
@@ -147,6 +148,7 @@
     app.querySelectorAll('[data-delete]').forEach((button) => button.addEventListener('click', () => mutate('DELETE', { id: button.dataset.delete }, 'Entry deleted.')));
     app.querySelectorAll('[data-delete-movie]').forEach((button) => button.addEventListener('click', () => deleteMovie(button.dataset.deleteMovie)));
     app.querySelectorAll('[data-move-entry]').forEach((button) => button.addEventListener('click', () => reorderItems('entries', button.dataset.moveEntry, Number(button.dataset.direction))));
+    app.querySelectorAll('[data-pin-entry]').forEach((button) => button.addEventListener('click', () => pinEntry(button.dataset.pinEntry, button.dataset.pinned !== 'true')));
     app.querySelectorAll('[data-move-movie]').forEach((button) => button.addEventListener('click', () => reorderItems('movies', button.dataset.moveMovie, Number(button.dataset.direction))));
   }
 
@@ -226,6 +228,16 @@
         await loadMovies();
       }
       notify('Order updated.');
+    } catch (error) {
+      notify(error.message);
+    }
+  }
+
+  async function pinEntry(id, pinned) {
+    try {
+      await request('PATCH', { id, pinned });
+      await loadEntries();
+      notify(pinned ? 'Entry pinned.' : 'Entry unpinned.');
     } catch (error) {
       notify(error.message);
     }

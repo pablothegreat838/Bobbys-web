@@ -39,6 +39,7 @@ export async function onRequestPost({ request, env }) {
       name,
       links,
       category: body.category,
+      pinned: false,
       createdAt: timestamp
     };
     await writeEntries(env, [...entries, entry]);
@@ -54,6 +55,13 @@ export async function onRequestPatch({ request, env }) {
   try {
     const body = await request.json();
     const entries = await readEntries(env);
+    if (typeof body?.id === 'string' && typeof body.pinned === 'boolean') {
+      const index = entries.findIndex((entry) => entry.id === body.id);
+      if (index < 0) return json({ error: 'Entry not found.' }, 404);
+      entries[index].pinned = body.pinned;
+      await writeEntries(env, entries);
+      return json(entries[index]);
+    }
     if (!Array.isArray(body?.ids) || body.ids.length !== entries.length ||
       body.ids.some((id) => typeof id !== 'string') || new Set(body.ids).size !== entries.length ||
       body.ids.some((id) => !entries.some((entry) => entry.id === id))) {
