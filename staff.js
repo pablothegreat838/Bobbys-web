@@ -79,6 +79,7 @@
           <form class="add-form" id="add-form">
             <div class="field"><label for="new-name">Entry name</label><input id="new-name" name="name" type="text" maxlength="200" placeholder="Daily link" required></div>
             <div class="field"><label for="new-links">Links</label><textarea id="new-links" name="links" placeholder="Paste links here, one per line" required></textarea><small>All links stay together under this entry name.</small></div>
+            <div class="field"><label for="entry-files">Import text files</label><input id="entry-files" type="file" accept="text/*,.txt,.csv,.md" multiple><small>File text is added to the Links box.</small></div>
             <div class="field"><label for="new-category">Category</label><select id="new-category" name="category">${categories.map((category) => `<option value="${category}">${category[0].toUpperCase() + category.slice(1)}</option>`).join('')}</select></div>
             <button class="primary-button" type="submit">Add entry</button>
           </form>
@@ -141,6 +142,7 @@
       render();
     }));
     app.querySelector('#add-form').addEventListener('submit', addEntries);
+    app.querySelector('#entry-files').addEventListener('change', importEntryFiles);
     app.querySelector('#movie-form').addEventListener('submit', addMovie);
     app.querySelector('#announcement-form').addEventListener('submit', saveAnnouncement);
     app.querySelector('#site-text-form')?.addEventListener('submit', saveSiteText);
@@ -497,6 +499,22 @@
       form.reset();
     } catch (error) {
       notify(error.message);
+    }
+  }
+
+  async function importEntryFiles(event) {
+    const input = event.currentTarget;
+    const textarea = app.querySelector('#new-links');
+    const files = [...input.files];
+    if (!files.length) return;
+    try {
+      const contents = await Promise.all(files.map((file) => file.text()));
+      textarea.value = [textarea.value, ...contents].filter(Boolean).join('\n');
+      notify(`${files.length} ${files.length === 1 ? 'file' : 'files'} added to Links.`);
+    } catch {
+      notify('Could not read the selected text file.');
+    } finally {
+      input.value = '';
     }
   }
 
