@@ -32,5 +32,10 @@ export const SITE_THEMES = [
 ];
 
 export function defaultSiteContent() {
-  return { ...Object.fromEntries(SITE_TEXT_FIELDS.map(({ key, value }) => [key, value])), theme: 'default' };
+  return {
+    ...Object.fromEntries(SITE_TEXT_FIELDS.map(({ key, value }) => [key, value])),
+    theme: 'default',
+    siteTitle: '',
+    favicon: ''
+  };
 }

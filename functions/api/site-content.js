@@ -17,6 +17,8 @@ async function readSiteContent(env) {
         }
       }
       if (SITE_THEMES.some(({ id }) => id === parsed.theme)) content.theme = parsed.theme;
+      if (typeof parsed.siteTitle === 'string' && parsed.siteTitle.length <= 120) content.siteTitle = parsed.siteTitle;
+      if (typeof parsed.favicon === 'string' && /^[a-zA-Z0-9_-]{1,80}$/.test(parsed.favicon)) content.favicon = parsed.favicon;
     }
   }
   return content;
@@ -47,12 +49,17 @@ export async function onRequestPut({ request, env }) {
   if (!body?.content || typeof body.content !== 'object' || Array.isArray(body.content)) {
     return json({ error: 'Provide site text fields to save.' }, 400);
   }
-  const allowedKeys = new Set([...SITE_TEXT_FIELDS.map(({ key }) => key), 'theme']);
+  const allowedKeys = new Set([...SITE_TEXT_FIELDS.map(({ key }) => key), 'theme', 'siteTitle', 'favicon']);
   for (const [key, value] of Object.entries(body.content)) {
-    if (!allowedKeys.has(key) || typeof value !== 'string' || (key === 'theme'
-      ? !SITE_THEMES.some(({ id }) => id === value)
-      : value.length > MAX_TEXT_LENGTH)) {
-      return json({ error: 'Use an available text field with no more than 2000 characters, or choose a supported theme.' }, 400);
+    const validValue = typeof value === 'string' && (key === 'theme'
+      ? SITE_THEMES.some(({ id }) => id === value)
+      : key === 'siteTitle'
+        ? value.length <= 120
+        : key === 'favicon'
+          ? value === '' || /^[a-zA-Z0-9_-]{1,80}$/.test(value)
+          : value.length <= MAX_TEXT_LENGTH);
+    if (!allowedKeys.has(key) || !validValue) {
+      return json({ error: 'Use an available text field, a supported theme, a title up to 120 characters, or a valid favicon version.' }, 400);
     }
   }
 

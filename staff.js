@@ -8,6 +8,7 @@
   let siteText = null;
   let activePanel = 'entries';
   let sidebarOpen = true;
+  const expandedEntries = new Set();
   let pendingEntries = [];
   let hasRendered = false;
   let movieUploadInProgress = false;
@@ -34,12 +35,16 @@
       return groups;
     }, {}) || {};
     const siteTextForm = siteText ? Object.entries(siteTextGroups).map(([page, fields]) => `<section class="site-text-group"><h2 class="section-title">${escapeHtml(page)}</h2>${fields.join('')}</section>`).join('') : '<div class="manage-empty">Loading site text...</div>';
-    const rows = entries.map((entry, index) => `
+    const rows = entries.map((entry, index) => {
+      const links = entry.links || [];
+      const expanded = expandedEntries.has(entry.id);
+      const visibleLinks = expanded ? links : links.slice(0, 100);
+      return `
       <article class="manage-entry" data-entry-drop="${escapeHtml(entry.id)}">
         <div class="manage-top">
           <div class="manage-entry-copy">
             <strong>${index + 1}. ${escapeHtml(entry.name)}</strong>
-            <div class="manage-entry-links">${(entry.links || []).map((url) => `<span>${escapeHtml(url)}</span>`).join(' <span aria-hidden="true">&middot;</span> ') || '<span>No links added</span>'}</div>
+            <div class="manage-entry-links">${visibleLinks.map((url) => `<span>${escapeHtml(url)}</span>`).join(' <span aria-hidden="true">&middot;</span> ') || '<span>No links added</span>'}${links.length > 100 ? `<button class="entry-links-toggle" type="button" data-expand-entry="${escapeHtml(entry.id)}" aria-expanded="${expanded}">${expanded ? 'Show less' : `Show ${links.length - 100} more links`}</button>` : ''}</div>
             <span class="entry-category">${escapeHtml(entry.category || 'websites')}</span>
           </div>
           <div class="manage-actions">
@@ -50,7 +55,8 @@
             <button class="small-button remove" type="button" data-delete="${escapeHtml(entry.id)}" aria-label="Delete entry">Delete</button>
           </div>
         </div>
-      </article>`).join('');
+      </article>`;
+    }).join('');
     const movieRows = movies.map((movie, index) => `
       <article class="manage-entry manage-movie">
         ${movie.posterKey ? `<img src="/api/movie-media?key=${encodeURIComponent(movie.posterKey)}" alt="" loading="lazy">` : '<span class="manage-movie-placeholder" aria-hidden="true">▶</span>'}
@@ -162,6 +168,16 @@
             </fieldset>
             ${siteText ? '<button class="primary-button theme-save" type="submit">Apply theme for everyone</button>' : '<div class="manage-empty">Loading theme settings...</div>'}
           </form>
+          <section class="site-identity-section">
+            <h2 class="section-title">Site identity</h2>
+            <form id="site-identity-form" class="site-identity-form">
+              <p class="intro">Set the browser tab title and favicon shown to every visitor.</p>
+              <div class="field"><label for="site-title">Browser tab title</label><input id="site-title" name="siteTitle" type="text" maxlength="120" value="${escapeHtml(siteText?.content.siteTitle || '')}" placeholder="Links | Bobby's Web"></div>
+              <div class="field"><label for="site-favicon">Favicon image</label><input id="site-favicon" name="favicon" type="file" accept=".png,.ico,.jpg,.jpeg,.gif,.webp,image/png,image/x-icon,image/vnd.microsoft.icon,image/jpeg,image/gif,image/webp"><small>PNG, ICO, JPEG, GIF, or WebP. Maximum size: 256 KB.</small></div>
+              ${siteText?.content.favicon ? `<div class="site-icon-preview"><img src="/api/site-icon?v=${encodeURIComponent(siteText.content.favicon)}" alt="Current favicon"><span>Current favicon</span></div>` : ''}
+              ${siteText ? '<button class="primary-button theme-save" type="submit">Save site identity for everyone</button>' : ''}
+            </form>
+          </section>
         </div>
       </section>
       </div>
@@ -179,12 +195,19 @@
       render();
       if (!sidebarOpen) app.querySelector('#staff-menu-toggle')?.focus();
     }));
+    app.querySelectorAll('[data-expand-entry]').forEach((button) => button.addEventListener('click', () => {
+      const id = button.dataset.expandEntry;
+      if (expandedEntries.has(id)) expandedEntries.delete(id);
+      else expandedEntries.add(id);
+      render();
+    }));
     app.querySelector('#add-form').addEventListener('submit', addEntries);
     app.querySelector('#entry-files').addEventListener('change', importEntryFiles);
     app.querySelector('#movie-form').addEventListener('submit', addMovie);
     app.querySelector('#announcement-form').addEventListener('submit', saveAnnouncement);
     app.querySelector('#site-text-form')?.addEventListener('submit', saveSiteText);
     app.querySelector('#site-theme-form')?.addEventListener('submit', saveSiteTheme);
+    app.querySelector('#site-identity-form')?.addEventListener('submit', saveSiteIdentity);
     app.querySelector('#delete-announcement')?.addEventListener('click', deleteAnnouncement);
     app.querySelector('#delete-all').addEventListener('click', deleteAll);
     app.querySelectorAll('[data-delete]').forEach((button) => button.addEventListener('click', () => mutate('DELETE', { id: button.dataset.delete }, 'Entry deleted.')));
@@ -292,6 +315,33 @@
       document.querySelector('meta[name="theme-color"]')?.setAttribute('content', themeColors[result.content.theme] || themeColors.default);
       render();
       notify('Theme updated for everyone.');
+    } catch (error) {
+      notify(error.message);
+      submit.disabled = false;
+    }
+  }
+
+  async function saveSiteIdentity(event) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const submit = form.querySelector('button[type="submit"]');
+    if (!submit) return;
+    const data = new FormData(form);
+    const favicon = data.get('favicon');
+    submit.disabled = true;
+    try {
+      let result;
+      if (favicon?.size) {
+        const response = await fetch('/api/site-icon', { method: 'POST', body: data, cache: 'no-store' });
+        result = await response.json();
+        if (!response.ok) throw new Error(result.error || 'Site identity could not be saved.');
+      } else {
+        result = await siteTextRequest('PUT', { content: { siteTitle: String(data.get('siteTitle') || '').trim() } });
+      }
+      siteText = { ...siteText, content: result.content };
+      window.applySiteContentSettings?.(result.content);
+      render();
+      notify('Site identity updated for everyone.');
     } catch (error) {
       notify(error.message);
       submit.disabled = false;
