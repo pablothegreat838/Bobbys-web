@@ -7,6 +7,7 @@
   let announcement = null;
   let siteText = null;
   let activePanel = 'entries';
+  let sidebarOpen = true;
   let pendingEntries = [];
   let hasRendered = false;
   let movieUploadInProgress = false;
@@ -61,17 +62,31 @@
         </div>
       </article>`).join('');
 
+    const themes = siteText?.themes || [
+      { id: 'default', label: 'Default' },
+      { id: 'halloween', label: 'Halloween' },
+      { id: 'christmas', label: 'Christmas' }
+    ];
     app.innerHTML = `
+      <div class="staff-shell">
       <div class="staff-heading">
-        <div><p class="eyebrow">Staff workspace</p><h1>Manage.</h1></div>
+        <div class="staff-heading-title">
+          <button class="staff-menu-toggle" id="staff-menu-toggle" type="button" aria-label="${sidebarOpen ? 'Hide' : 'Show'} staff pages" aria-expanded="${sidebarOpen}" aria-controls="staff-sidebar">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+          </button>
+          <div><p class="eyebrow">Staff workspace</p><h1>Manage.</h1></div>
+        </div>
         <div class="staff-nav"><a class="back-link" href="/home.html">Public page</a><a class="back-link" href="/movies.html">Movies</a></div>
       </div>
-      <div class="staff-tabs" role="tablist" aria-label="Staff tools">
+      <div class="staff-layout">
+      <nav class="staff-tabs" id="staff-sidebar" role="tablist" aria-orientation="vertical" aria-label="Staff pages" ${sidebarOpen ? '' : 'hidden'}>
         <button class="staff-tab" id="staff-tab-entries" type="button" role="tab" aria-selected="${activePanel === 'entries'}" aria-controls="staff-panel-entries" data-panel="entries">Links <span>${entries.length}</span></button>
         <button class="staff-tab" id="staff-tab-movies" type="button" role="tab" aria-selected="${activePanel === 'movies'}" aria-controls="staff-panel-movies" data-panel="movies">Movies <span>${movies.length}</span></button>
         <button class="staff-tab" id="staff-tab-announcement" type="button" role="tab" aria-selected="${activePanel === 'announcement'}" aria-controls="staff-panel-announcement" data-panel="announcement">Announcement</button>
         <button class="staff-tab" id="staff-tab-site-text" type="button" role="tab" aria-selected="${activePanel === 'site-text'}" aria-controls="staff-panel-site-text" data-panel="site-text">Site text</button>
-      </div>
+        <button class="staff-tab" id="staff-tab-theme" type="button" role="tab" aria-selected="${activePanel === 'theme'}" aria-controls="staff-panel-theme" data-panel="theme">Theme</button>
+      </nav>
+      <div class="staff-content">
       <section class="staff-panel${activePanel === 'entries' ? '' : ' staff-panel-hidden'}" id="staff-panel-entries" role="tabpanel" aria-labelledby="staff-tab-entries" ${activePanel === 'entries' ? '' : 'hidden'}>
         <div class="staff-workspace">
           <section aria-labelledby="add-title">
@@ -136,16 +151,40 @@
           </form>
         </div>
       </section>`);
+    app.insertAdjacentHTML('beforeend', `
+      <section class="staff-panel${activePanel === 'theme' ? '' : ' staff-panel-hidden'}" id="staff-panel-theme" role="tabpanel" aria-labelledby="staff-tab-theme" ${activePanel === 'theme' ? '' : 'hidden'}>
+        <div class="site-text-editor">
+          <form id="site-theme-form" class="site-theme-form">
+            <p class="intro">Choose the color theme visitors see across the website.</p>
+            <fieldset class="theme-fieldset">
+              <legend class="section-title">Website theme</legend>
+              <div class="theme-options">${themes.map(({ id, label }) => `<label class="theme-option"><input type="radio" name="theme" value="${escapeHtml(id)}" ${siteText?.content.theme === id || (!siteText?.content.theme && id === 'default') ? 'checked' : ''}><span class="theme-swatches" aria-hidden="true"><i data-theme-swatch="${escapeHtml(id)}"></i><i data-theme-swatch-accent="${escapeHtml(id)}"></i></span><strong>${escapeHtml(label)}</strong></label>`).join('')}</div>
+            </fieldset>
+            ${siteText ? '<button class="primary-button theme-save" type="submit">Apply theme for everyone</button>' : '<div class="manage-empty">Loading theme settings...</div>'}
+          </form>
+        </div>
+      </section>
+      </div>
+      </div>
+      </div>`);
 
+    app.querySelector('#staff-menu-toggle').addEventListener('click', () => {
+      sidebarOpen = !sidebarOpen;
+      render();
+      app.querySelector('#staff-menu-toggle')?.focus();
+    });
     app.querySelectorAll('[data-panel]').forEach((button) => button.addEventListener('click', () => {
       activePanel = button.dataset.panel;
+      if (window.matchMedia('(max-width: 650px)').matches) sidebarOpen = false;
       render();
+      if (!sidebarOpen) app.querySelector('#staff-menu-toggle')?.focus();
     }));
     app.querySelector('#add-form').addEventListener('submit', addEntries);
     app.querySelector('#entry-files').addEventListener('change', importEntryFiles);
     app.querySelector('#movie-form').addEventListener('submit', addMovie);
     app.querySelector('#announcement-form').addEventListener('submit', saveAnnouncement);
     app.querySelector('#site-text-form')?.addEventListener('submit', saveSiteText);
+    app.querySelector('#site-theme-form')?.addEventListener('submit', saveSiteTheme);
     app.querySelector('#delete-announcement')?.addEventListener('click', deleteAnnouncement);
     app.querySelector('#delete-all').addEventListener('click', deleteAll);
     app.querySelectorAll('[data-delete]').forEach((button) => button.addEventListener('click', () => mutate('DELETE', { id: button.dataset.delete }, 'Entry deleted.')));
@@ -233,6 +272,26 @@
       siteText = { ...siteText, content: result.content };
       render();
       notify('Site text saved.');
+    } catch (error) {
+      notify(error.message);
+      submit.disabled = false;
+    }
+  }
+
+  async function saveSiteTheme(event) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const submit = form.querySelector('button[type="submit"]');
+    const theme = new FormData(form).get('theme');
+    submit.disabled = true;
+    try {
+      const result = await siteTextRequest('PUT', { content: { theme } });
+      siteText = { ...siteText, content: result.content };
+      document.documentElement.dataset.theme = result.content.theme;
+      const themeColors = { default: '#ffffff', halloween: '#0D1117', christmas: '#F4F8F4' };
+      document.querySelector('meta[name="theme-color"]')?.setAttribute('content', themeColors[result.content.theme] || themeColors.default);
+      render();
+      notify('Theme updated for everyone.');
     } catch (error) {
       notify(error.message);
       submit.disabled = false;

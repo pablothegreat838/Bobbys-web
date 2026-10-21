@@ -25,6 +25,12 @@ export const SITE_TEXT_FIELDS = [
   { key: 'shared.footer', page: 'Shared', label: 'Footer copyright', value: "© Copyrighted by Spud / Bobby's Web" }
 ];
 
+export const SITE_THEMES = [
+  { id: 'default', label: 'Default' },
+  { id: 'halloween', label: 'Halloween' },
+  { id: 'christmas', label: 'Christmas' }
+];
+
 export function defaultSiteContent() {
-  return Object.fromEntries(SITE_TEXT_FIELDS.map(({ key, value }) => [key, value]));
+  return { ...Object.fromEntries(SITE_TEXT_FIELDS.map(({ key, value }) => [key, value])), theme: 'default' };
 }
