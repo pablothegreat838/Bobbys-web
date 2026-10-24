@@ -67,7 +67,7 @@ export async function onRequestPost({ request, env }) {
     return json({ content });
   } catch (error) {
     await env.MOVIES.delete(key).catch(() => {});
-    return json({ error: error.message || 'Favicon could not be saved.' }, 503);
+    return json({ error: 'Favicon could not be saved.' }, 503);
   }
 }
 
@@ -83,6 +83,6 @@ export async function onRequestGet({ request, env }) {
     object.writeHttpMetadata(headers);
     return new Response(object.body, { headers });
   } catch (error) {
-    return json({ error: error.message || 'Favicon could not be loaded.' }, 503);
+    return json({ error: 'Favicon could not be loaded.' }, 503);
   }
 }

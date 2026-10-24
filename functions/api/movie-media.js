@@ -21,7 +21,7 @@ export async function onRequestGet({ request, env }) {
   try {
     const head = await env.MOVIES.head(key);
     if (!head) return json({ error: 'Media not found.' }, 404);
-    const headers = new Headers({ 'Accept-Ranges': 'bytes', 'Cache-Control': 'public, max-age=3600' });
+    const headers = new Headers({ 'Accept-Ranges': 'bytes', 'Cache-Control': 'public, max-age=3600', 'X-Content-Type-Options': 'nosniff' });
     head.writeHttpMetadata(headers);
     headers.set('ETag', head.httpEtag);
     const rangeHeader = request.headers.get('Range');
@@ -41,6 +41,6 @@ export async function onRequestGet({ request, env }) {
     headers.set('Content-Length', String(head.size));
     return new Response(object.body, { headers });
   } catch (error) {
-    return json({ error: error.message || 'Could not load media.' }, 503);
+    return json({ error: 'Could not load media.' }, 503);
   }
 }

@@ -58,7 +58,7 @@ export async function onRequestPost({ request, env }) {
   } catch {
     return json({ error: 'Provide a valid HTTP or HTTPS URL.' }, 400);
   }
-  if (!['http:', 'https:'].includes(parsedUrl.protocol) || url.length > MAX_URL_LENGTH) {
+  if (!['http:', 'https:'].includes(parsedUrl.protocol) || parsedUrl.username || parsedUrl.password || url.length > MAX_URL_LENGTH) {
     return json({ error: 'Provide a valid HTTP or HTTPS URL no longer than 2,048 characters.' }, 400);
   }
   if (!title || title.length > MAX_TITLE_LENGTH) {

@@ -25,7 +25,8 @@ export async function onRequestPost({ request, env }) {
     const key = url.searchParams.get('key');
     const uploadId = url.searchParams.get('uploadId');
     const partNumber = Number(url.searchParams.get('partNumber'));
-    if (!OBJECT_KEY.test(key || '') || !uploadId || !Number.isInteger(partNumber) || partNumber < 1 || partNumber > 10000 || !request.body) {
+    const contentLength = Number(request.headers.get('Content-Length') || 0);
+    if (!OBJECT_KEY.test(key || '') || !uploadId || !Number.isInteger(partNumber) || partNumber < 1 || partNumber > 10000 || !request.body || contentLength > 9 * 1024 * 1024) {
       return json({ error: 'Invalid upload part.' }, 400);
     }
     try {
@@ -33,7 +34,7 @@ export async function onRequestPost({ request, env }) {
       const part = await upload.uploadPart(partNumber, request.body);
       return json({ partNumber, etag: part.etag });
     } catch (error) {
-      return json({ error: error.message || 'Could not upload this file part.' }, 503);
+      return json({ error: 'Could not upload this file part.' }, 503);
     }
   }
 
@@ -43,7 +44,9 @@ export async function onRequestPost({ request, env }) {
   if (action === 'init') {
     const kind = body.kind;
     const contentType = typeof body.contentType === 'string' ? body.contentType : '';
-    if (!['video', 'poster'].includes(kind) || !contentType.startsWith(kind === 'video' ? 'video/' : 'image/')) {
+    const validVideoType = /^video\/(mp4|webm|ogg|quicktime)$/i.test(contentType);
+    const validPosterType = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'].includes(contentType.toLowerCase());
+    if (!['video', 'poster'].includes(kind) || !(kind === 'video' ? validVideoType : validPosterType)) {
       return json({ error: kind === 'video' ? 'Choose a video file.' : 'Choose an image file.' }, 400);
     }
     try {
@@ -51,7 +54,7 @@ export async function onRequestPost({ request, env }) {
       const upload = await env.MOVIES.createMultipartUpload(key, { httpMetadata: { contentType } });
       return json({ key, uploadId: upload.uploadId });
     } catch (error) {
-      return json({ error: error.message || 'Could not start the upload.' }, 503);
+      return json({ error: 'Could not start the upload.' }, 503);
     }
   }
 
@@ -61,7 +64,7 @@ export async function onRequestPost({ request, env }) {
       await env.MOVIES.delete(body.key);
       return json({ ok: true });
     } catch (error) {
-      return json({ error: error.message || 'Could not remove the uploaded file.' }, 503);
+      return json({ error: 'Could not remove the uploaded file.' }, 503);
     }
   }
   if (!body.uploadId) return json({ error: 'Missing upload id.' }, 400);
@@ -81,6 +84,6 @@ export async function onRequestPost({ request, env }) {
     }
     return json({ error: 'Unknown upload action.' }, 400);
   } catch (error) {
-    return json({ error: error.message || 'Could not finish the upload.' }, 503);
+    return json({ error: 'Could not finish the upload.' }, 503);
   }
 }

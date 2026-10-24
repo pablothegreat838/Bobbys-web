@@ -15,15 +15,20 @@ export async function onRequestGet({ env }) {
     }
     return json({ announcement });
   } catch (error) {
-    return json({ error: error.message || 'Could not load the announcement.' }, 503);
+    return json({ error: 'Could not load the announcement.' }, 503);
   }
 }
 
 export async function onRequestPut({ request, env }) {
   const denied = requireSameOrigin(request);
   if (denied) return denied;
+  let body;
   try {
-    const body = await request.json();
+    body = await request.json();
+  } catch {
+    return json({ error: 'Request body must be valid JSON.' }, 400);
+  }
+  try {
     const message = typeof body?.message === 'string' ? body.message.trim() : '';
     const expiresAt = typeof body?.expiresAt === 'string' ? new Date(body.expiresAt) : null;
     if (!message || message.length > MAX_MESSAGE_LENGTH) {
@@ -37,7 +42,7 @@ export async function onRequestPut({ request, env }) {
     await env.ENTRIES.put(ANNOUNCEMENT_KEY, JSON.stringify(announcement));
     return json({ announcement });
   } catch (error) {
-    return json({ error: error.message || 'Could not save the announcement.' }, 503);
+    return json({ error: 'Could not save the announcement.' }, 503);
   }
 }
 
@@ -49,6 +54,6 @@ export async function onRequestDelete({ request, env }) {
     await env.ENTRIES.delete(ANNOUNCEMENT_KEY);
     return json({ announcement: null });
   } catch (error) {
-    return json({ error: error.message || 'Could not remove the announcement.' }, 503);
+    return json({ error: 'Could not remove the announcement.' }, 503);
   }
 }

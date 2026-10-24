@@ -53,7 +53,7 @@ export async function onRequestGet({ env }) {
   try {
     return json(await readMovies(env));
   } catch (error) {
-    return json({ error: error.message || 'Could not load movies.' }, 503);
+    return json({ error: 'Could not load movies.' }, 503);
   }
 }
 
@@ -83,7 +83,9 @@ export async function onRequestPost({ request, env }) {
       posterKey ? env.MOVIES.head(posterKey) : null
     ]);
     if ((videoKey && !video) || (posterKey && !poster)) return json({ error: 'The video or poster upload could not be found.' }, 400);
-    if ((video && !video.httpMetadata?.contentType?.startsWith('video/')) || (poster && !poster.httpMetadata?.contentType?.startsWith('image/'))) {
+    const posterType = poster?.httpMetadata?.contentType?.toLowerCase();
+    if ((video && !video.httpMetadata?.contentType?.startsWith('video/')) ||
+      (poster && !['image/jpeg', 'image/png', 'image/gif', 'image/webp'].includes(posterType))) {
       return json({ error: 'Upload a video file and an image poster.' }, 400);
     }
     const movies = await readMovies(env);
@@ -91,7 +93,7 @@ export async function onRequestPost({ request, env }) {
     await env.ENTRIES.put(MOVIES_KEY, JSON.stringify([...movies, movie]));
     return json(movie, 201);
   } catch (error) {
-    return json({ error: error.message || 'Could not save the movie.' }, 503);
+    return json({ error: 'Could not save the movie.' }, 503);
   }
 }
 
@@ -118,7 +120,7 @@ export async function onRequestPatch({ request, env }) {
     await env.ENTRIES.put(MOVIES_KEY, JSON.stringify(reordered));
     return json(reordered);
   } catch (error) {
-    return json({ error: error.message || 'Could not reorder movies.' }, 503);
+    return json({ error: 'Could not reorder movies.' }, 503);
   }
 }
 
@@ -144,6 +146,6 @@ export async function onRequestDelete({ request, env }) {
     if (keys.length) await Promise.all(keys.map((key) => env.MOVIES.delete(key)));
     return json({ ok: true });
   } catch (error) {
-    return json({ error: error.message || 'Could not delete the movie.' }, 503);
+    return json({ error: 'Could not delete the movie.' }, 503);
   }
 }

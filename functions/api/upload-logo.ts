@@ -14,27 +14,23 @@ interface PagesContext {
   env: Env;
 }
 
-const CORS_HEADERS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type',
-  'Access-Control-Max-Age': '86400'
-};
+const MAX_SVG_SIZE = 100_000;
+const UNSAFE_SVG = /<\s*(?:script|style|foreignObject|iframe|object|embed|audio|video|image|use|animate|set)\b|\bon[a-z]+\s*=|javascript\s*:|data\s*:\s*text\/html|<!DOCTYPE|<!ENTITY|\b(?:href|style)\s*=|url\s*\(/i;
 
 function json(data: unknown, status = 200): Response {
   return new Response(JSON.stringify(data), {
     status,
     headers: {
-      ...CORS_HEADERS,
       'Content-Type': 'application/json; charset=utf-8',
-      'Cache-Control': 'no-store'
+      'Cache-Control': 'no-store',
+      'X-Content-Type-Options': 'nosniff'
     }
   });
 }
 
 export async function onRequest({ request, env }: PagesContext): Promise<Response> {
   if (request.method === 'OPTIONS') {
-    return new Response(null, { status: 204, headers: CORS_HEADERS });
+    return new Response(null, { status: 204, headers: { 'Cache-Control': 'no-store' } });
   }
 
   if (request.method !== 'POST') {
@@ -59,7 +55,8 @@ export async function onRequest({ request, env }: PagesContext): Promise<Respons
   if (payload.secret !== env.UPLOAD_SECRET) {
     return json({ error: 'Unauthorized' }, 401);
   }
-  if (typeof payload.name !== 'string' || typeof payload.svg !== 'string') {
+  if (typeof payload.name !== 'string' || !/^[a-zA-Z0-9_-]{1,80}$/.test(payload.name) ||
+    typeof payload.svg !== 'string' || payload.svg.length > MAX_SVG_SIZE || UNSAFE_SVG.test(payload.svg)) {
     return json({ error: 'name and svg must be strings' }, 400);
   }
   if (!env.LOGO_BUCKET) {

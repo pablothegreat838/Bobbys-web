@@ -9,15 +9,20 @@ export async function onRequestGet({ env }) {
   try {
     return json(await readEntries(env));
   } catch (error) {
-    return json({ error: error.message || 'Could not load entries.' }, 503);
+    return json({ error: 'Could not load entries.' }, 503);
   }
 }
 
 export async function onRequestPost({ request, env }) {
   const denied = requireSameOrigin(request);
   if (denied) return denied;
+  let body;
   try {
-    const body = await request.json();
+    body = await request.json();
+  } catch {
+    return json({ error: 'Request body must be valid JSON.' }, 400);
+  }
+  try {
     const entries = await readEntries(env);
     if (!body || typeof body.name !== 'string' || !Array.isArray(body.links) || !body.links.length) {
       return json({ error: 'Provide an entry name and at least one link.' }, 400);
@@ -31,7 +36,16 @@ export async function onRequestPost({ request, env }) {
       if (typeof value !== 'string' || !value.trim() || value.trim().length > MAX_URL_LENGTH) {
         return json({ error: `Links must contain 1 to ${MAX_URL_LENGTH} characters.` }, 400);
       }
-      links.push(value.trim());
+      let parsedUrl;
+      try {
+        parsedUrl = new URL(value.trim());
+      } catch {
+        return json({ error: 'Each link must be a valid HTTP or HTTPS URL.' }, 400);
+      }
+      if (!['http:', 'https:'].includes(parsedUrl.protocol) || parsedUrl.username || parsedUrl.password) {
+        return json({ error: 'Each link must be a public HTTP or HTTPS URL without embedded credentials.' }, 400);
+      }
+      links.push(parsedUrl.href);
     }
     const timestamp = new Date().toISOString();
     const entry = {
@@ -45,15 +59,20 @@ export async function onRequestPost({ request, env }) {
     await writeEntries(env, [...entries, entry]);
     return json({ added: 1, entry }, 201);
   } catch (error) {
-    return json({ error: error.message || 'Could not add entries.' }, 503);
+    return json({ error: 'Could not add entries.' }, 503);
   }
 }
 
 export async function onRequestPatch({ request, env }) {
   const denied = requireSameOrigin(request);
   if (denied) return denied;
+  let body;
   try {
-    const body = await request.json();
+    body = await request.json();
+  } catch {
+    return json({ error: 'Request body must be valid JSON.' }, 400);
+  }
+  try {
     const entries = await readEntries(env);
     if (typeof body?.id === 'string' && typeof body.pinned === 'boolean') {
       const index = entries.findIndex((entry) => entry.id === body.id);
@@ -72,15 +91,20 @@ export async function onRequestPatch({ request, env }) {
     await writeEntries(env, reordered);
     return json(reordered);
   } catch (error) {
-    return json({ error: error.message || 'Could not reorder entries.' }, 503);
+    return json({ error: 'Could not update entries.' }, 503);
   }
 }
 
 export async function onRequestDelete({ request, env }) {
   const denied = requireSameOrigin(request);
   if (denied) return denied;
+  let body;
   try {
-    const body = await request.json();
+    body = await request.json();
+  } catch {
+    return json({ error: 'Request body must be valid JSON.' }, 400);
+  }
+  try {
     const entries = await readEntries(env);
     if (body.all === true) {
       await writeEntries(env, []);
@@ -91,6 +115,6 @@ export async function onRequestDelete({ request, env }) {
     await writeEntries(env, remaining);
     return json({ ok: true });
   } catch (error) {
-    return json({ error: error.message || 'Could not delete entries.' }, 503);
+    return json({ error: 'Could not delete entries.' }, 503);
   }
 }

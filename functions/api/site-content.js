@@ -32,7 +32,7 @@ export async function onRequestGet({ env }) {
       themes: SITE_THEMES
     });
   } catch (error) {
-    return json({ error: error.message || 'Could not load site text.' }, 503);
+    return json({ error: 'Could not load site text.' }, 503);
   }
 }
 
@@ -68,6 +68,6 @@ export async function onRequestPut({ request, env }) {
     await env.ENTRIES.put(CONTENT_KEY, JSON.stringify(content));
     return json({ content });
   } catch (error) {
-    return json({ error: error.message || 'Could not save site text.' }, 503);
+    return json({ error: 'Could not save site text.' }, 503);
   }
 }

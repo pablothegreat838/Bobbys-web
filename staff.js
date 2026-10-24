@@ -6,6 +6,7 @@
   let movies = [];
   let announcement = null;
   let siteText = null;
+  let controlState = null;
   let activePanel = 'entries';
   let sidebarOpen = true;
   const expandedEntries = new Set();
@@ -14,6 +15,8 @@
   let movieUploadInProgress = false;
   let refreshPending = false;
   let toastTimeout;
+  let authenticated = false;
+  let refreshTimers = [];
 
   function escapeHtml(value) {
     return String(value).replace(/[&<>"']/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]);
@@ -27,6 +30,7 @@
   }
 
   function render() {
+    if (!authenticated) return;
     hasRendered = true;
     const siteTextGroups = siteText?.fields.reduce((groups, field) => {
       groups[field.page] ||= [];
@@ -82,7 +86,7 @@
           </button>
           <div><p class="eyebrow">Staff workspace</p><h1>Manage.</h1></div>
         </div>
-        <div class="staff-nav"><a class="back-link" href="/home.html">Public page</a><a class="back-link" href="/movies.html">Movies</a></div>
+        <div class="staff-nav"><a class="back-link" href="/home.html">Public page</a><a class="back-link" href="/movies.html">Movies</a><button class="small-button" id="staff-logout" type="button">Log out</button></div>
       </div>
       <div class="staff-layout">
       <nav class="staff-tabs" id="staff-sidebar" role="tablist" aria-orientation="vertical" aria-label="Staff pages" ${sidebarOpen ? '' : 'hidden'}>
@@ -91,6 +95,7 @@
         <button class="staff-tab" id="staff-tab-announcement" type="button" role="tab" aria-selected="${activePanel === 'announcement'}" aria-controls="staff-panel-announcement" data-panel="announcement">Announcement</button>
         <button class="staff-tab" id="staff-tab-site-text" type="button" role="tab" aria-selected="${activePanel === 'site-text'}" aria-controls="staff-panel-site-text" data-panel="site-text">Site text</button>
         <button class="staff-tab" id="staff-tab-theme" type="button" role="tab" aria-selected="${activePanel === 'theme'}" aria-controls="staff-panel-theme" data-panel="theme">Theme</button>
+        <button class="staff-tab" id="staff-tab-control" type="button" role="tab" aria-selected="${activePanel === 'control'}" aria-controls="staff-panel-control" data-panel="control">Control</button>
       </nav>
       <div class="staff-content">
       <section class="staff-panel${activePanel === 'entries' ? '' : ' staff-panel-hidden'}" id="staff-panel-entries" role="tabpanel" aria-labelledby="staff-tab-entries" ${activePanel === 'entries' ? '' : 'hidden'}>
@@ -148,6 +153,19 @@
       </section>`;
 
     app.insertAdjacentHTML('beforeend', `
+      <section class="staff-panel${activePanel === 'control' ? '' : ' staff-panel-hidden'}" id="staff-panel-control" role="tabpanel" aria-labelledby="staff-tab-control" ${activePanel === 'control' ? '' : 'hidden'}>
+        <div class="site-text-editor staff-control-editor">
+          ${controlState ? `<form id="control-state-form" class="control-state-form">
+            <h2 class="section-title">Site availability</h2>
+            <section class="control-setting"><label class="control-toggle"><input type="checkbox" name="fullEnabled" ${controlState.full.enabled ? 'checked' : ''}> Shut down the entire website</label><div class="field"><label for="full-message">Full-site message</label><textarea id="full-message" name="fullMessage" maxlength="500" required>${escapeHtml(controlState.full.message)}</textarea></div></section>
+            ${[['links', 'Links page'], ['movies', 'Movies page'], ['terms', 'Terms page']].map(([key, label]) => `<section class="control-setting"><h3>${label}</h3><label class="control-toggle"><input type="checkbox" name="${key}Enabled" ${controlState.pages[key].enabled ? 'checked' : ''}> Page is available</label>${key === 'links' ? `<label class="control-toggle"><input type="checkbox" name="linksRedirect" ${controlState.pages.links.redirect ? 'checked' : ''}> Redirect disabled links page to /sl</label>` : ''}<div class="field"><label for="${key}-message">Shutdown message</label><textarea id="${key}-message" name="${key}Message" maxlength="500" required>${escapeHtml(controlState.pages[key].message)}</textarea></div></section>`).join('')}
+            <button class="primary-button theme-save" type="submit">Save availability settings</button>
+          </form>` : '<div class="manage-empty">Loading site controls...</div>'}
+          <section class="control-console"><h2 class="section-title">Command console</h2><form id="command-form" class="command-form"><label class="field"><span>Staff code</span><input name="code" maxlength="12" autocomplete="off" placeholder="#7878" required></label><button class="primary-button theme-save" type="submit">Run code</button></form><p class="control-code-help">Built in: #0998 full shutdown, #7878 diagnostics, #565 redirect links to /sl.</p><pre class="command-output" id="command-output" aria-live="polite">Ready.</pre></section>
+          <section class="control-custom-codes"><h2 class="section-title">Custom codes</h2><form id="custom-code-form" class="custom-code-form"><div class="field"><label for="custom-code">Numeric code</label><input id="custom-code" name="code" pattern="#[0-9]{3,8}" maxlength="9" placeholder="#1234" required></div><div class="field"><label for="custom-action">Allowed action</label><select id="custom-action" name="action"><option value="full-on">Enable full-site shutdown</option><option value="full-off">Restore full website</option><option value="links-off">Disable links page</option><option value="links-off-redirect">Disable links page and redirect</option><option value="links-on">Restore links page</option><option value="movies-off">Disable movies page</option><option value="movies-on">Restore movies page</option><option value="terms-off">Disable terms page</option><option value="terms-on">Restore terms page</option></select></div><button class="primary-button theme-save" type="submit">Save custom code</button></form><ul class="custom-code-list">${controlState ? controlState.customCodes.map((item) => `<li><code>${escapeHtml(item.code)}</code><span>${escapeHtml(item.action)}</span><button class="small-button remove" type="button" data-remove-code="${escapeHtml(item.code)}">Remove</button></li>`).join('') : ''}</ul></section>
+        </div>
+      </section>`);
+      app.insertAdjacentHTML('beforeend', `
       <section class="staff-panel${activePanel === 'site-text' ? '' : ' staff-panel-hidden'}" id="staff-panel-site-text" role="tabpanel" aria-labelledby="staff-tab-site-text" ${activePanel === 'site-text' ? '' : 'hidden'}>
         <div class="site-text-editor">
           <form id="site-text-form" class="site-text-form">
@@ -189,6 +207,11 @@
       render();
       app.querySelector('#staff-menu-toggle')?.focus();
     });
+    app.querySelector('#staff-logout').addEventListener('click', logout);
+    app.querySelector('#control-state-form')?.addEventListener('submit', saveControlState);
+    app.querySelector('#command-form')?.addEventListener('submit', runCommand);
+    app.querySelector('#custom-code-form')?.addEventListener('submit', saveCustomCode);
+    app.querySelectorAll('[data-remove-code]').forEach((button) => button.addEventListener('click', () => removeCustomCode(button.dataset.removeCode)));
     app.querySelectorAll('[data-panel]').forEach((button) => button.addEventListener('click', () => {
       activePanel = button.dataset.panel;
       if (window.matchMedia('(max-width: 650px)').matches) sidebarOpen = false;
@@ -282,6 +305,142 @@
     const result = await response.json();
     if (!response.ok) throw new Error(result.error || 'Site text could not be saved.');
     return result;
+  }
+
+  async function controlRequest(method = 'GET', data, path = '/api/staff/control') {
+    const response = await fetch(path, {
+      method,
+      headers: data ? { 'Content-Type': 'application/json' } : {},
+      body: data ? JSON.stringify(data) : undefined,
+      cache: 'no-store'
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || 'Staff controls could not be saved.');
+    return result;
+  }
+
+  async function saveControlState(event) {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    const next = {
+      ...controlState,
+      full: { ...controlState.full, enabled: data.has('fullEnabled'), message: String(data.get('fullMessage') || '') },
+      pages: Object.fromEntries(['links', 'movies', 'terms'].map((key) => [key, {
+        ...controlState.pages[key],
+        enabled: data.has(`${key}Enabled`),
+        ...(key === 'links' ? { redirect: data.has('linksRedirect') } : {}),
+        message: String(data.get(`${key}Message`) || '')
+      }]))
+    };
+    try {
+      controlState = await controlRequest('PUT', next);
+      render();
+      notify('Availability settings saved.');
+    } catch (error) {
+      notify(error.message);
+    }
+  }
+
+  async function runCommand(event) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const output = app.querySelector('#command-output');
+    const code = String(new FormData(form).get('code') || '').trim();
+    try {
+      const result = await controlRequest('POST', { code }, '/api/staff/command');
+      if (result.state) controlState = result.state;
+      output.textContent = result.health ? `${result.result} Website: ${result.health.website}; storage: ${result.health.storage}; pages: ${Object.entries(result.health.pages).map(([page, status]) => `${page} ${status}`).join(', ')}; checked ${result.health.time}` : result.result;
+      form.reset();
+      render();
+      const renewedOutput = app.querySelector('#command-output');
+      renewedOutput.textContent = output.textContent;
+      notify(result.result);
+    } catch (error) {
+      output.textContent = error.message;
+    }
+  }
+
+  async function saveCustomCode(event) {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    const code = String(data.get('code') || '').trim();
+    if (controlState.customCodes.some((item) => item.code === code)) {
+      notify('That code is already saved.');
+      return;
+    }
+    try {
+      controlState = await controlRequest('PUT', { ...controlState, customCodes: [...controlState.customCodes, { code, action: String(data.get('action')) }] });
+      render();
+      notify('Custom code saved.');
+    } catch (error) {
+      notify(error.message);
+    }
+  }
+
+  async function removeCustomCode(code) {
+    try {
+      controlState = await controlRequest('PUT', { ...controlState, customCodes: controlState.customCodes.filter((item) => item.code !== code) });
+      render();
+      notify('Custom code removed.');
+    } catch (error) {
+      notify(error.message);
+    }
+  }
+
+  function renderLogin(message = '') {
+    authenticated = false;
+    app.innerHTML = `<section class="staff-login"><p class="eyebrow">Staff workspace</p><h1>Staff login.</h1><p class="intro">Enter the staff password to continue.</p><form id="staff-login-form" class="login-form"><div class="field"><label for="staff-password">Password</label><input id="staff-password" name="password" type="password" inputmode="numeric" autocomplete="current-password" maxlength="32" required></div><p class="form-error" role="alert" ${message ? '' : 'hidden'}>${escapeHtml(message)}</p><button class="primary-button" type="submit">Log in</button></form></section>`;
+    app.querySelector('#staff-login-form').addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const submit = event.currentTarget.querySelector('button');
+      submit.disabled = true;
+      const password = String(new FormData(event.currentTarget).get('password') || '');
+      try {
+        const response = await fetch('/api/staff/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password }),
+          cache: 'no-store'
+        });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(result.error || 'Login failed.');
+        startWorkspace();
+      } catch (error) {
+        renderLogin(error.message);
+      }
+    });
+  }
+
+  async function logout() {
+    try {
+      await fetch('/api/staff/session', { method: 'POST', cache: 'no-store' });
+    } finally {
+      refreshTimers.forEach(clearInterval);
+      refreshTimers = [];
+      entries = [];
+      movies = [];
+      announcement = null;
+      siteText = null;
+      controlState = null;
+      renderLogin();
+    }
+  }
+
+  async function startWorkspace() {
+    authenticated = true;
+    const results = await Promise.allSettled([
+      loadEntries(), loadMovies(), loadAnnouncement(), loadSiteText(), controlRequest().then((state) => { controlState = state; })
+    ]);
+    const failure = results.find((result) => result.status === 'rejected' && result.reason?.message?.includes('Staff login required'));
+    if (failure) return renderLogin('Your staff session expired. Please log in again.');
+    render();
+    if (!refreshTimers.length) {
+      refreshTimers = [
+        window.setInterval(() => { loadEntries().catch(() => {}); }, 15000),
+        window.setInterval(() => { loadMovies().catch(() => {}); }, 15000),
+        window.setInterval(() => { loadAnnouncement().catch(() => {}); }, 15000)
+      ];
+    }
   }
 
   async function saveSiteText(event) {
@@ -632,13 +791,11 @@
     await mutate('DELETE', { all: true }, 'All entries deleted.');
   }
 
-  loadEntries().catch((error) => {
-    app.innerHTML = `<div class="empty"><strong>Staff tools unavailable</strong>${escapeHtml(error.message)}</div>`;
-  });
-  loadMovies().catch(() => {});
-  loadAnnouncement().catch(() => {});
-  loadSiteText().catch((error) => notify(error.message));
-  window.setInterval(() => { loadEntries().catch(() => {}); }, 15000);
-  window.setInterval(() => { loadMovies().catch(() => {}); }, 15000);
-  window.setInterval(() => { loadAnnouncement().catch(() => {}); }, 15000);
+  fetch('/api/staff/session', { cache: 'no-store' })
+    .then((response) => response.json().then((result) => ({ response, result })))
+    .then(({ response, result }) => {
+      if (response.ok && result.authenticated) startWorkspace();
+      else renderLogin(result.error || '');
+    })
+    .catch(() => renderLogin('Could not verify the staff session.'));
 })();
